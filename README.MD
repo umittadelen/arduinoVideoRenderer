@@ -20,6 +20,11 @@ This repository contains all the required files and resources for building a vid
 
 2. **Software Setup:**
    - Install the U8g2lib library
+   - Change this lines based on your screen:
+      - ```c++ 
+            4 | U8G2_SSD1309_128X64_NONAME0_F_HW_I2C u8g2(U8G2_R0);
+            6 | const int frameSize = 128 * 64 / 8;
+        ```
    - Upload the code to your Arduino board.
 
 3. **Usage:**
