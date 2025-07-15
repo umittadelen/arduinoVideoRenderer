@@ -22,7 +22,14 @@ This repository contains all the required files and resources for building a vid
    - Install the U8g2lib library
    - Upload the code to your Arduino board.
 
-3. **Go to**
+3. **Usage:**
+   - go to https://umittadelen.github.io/arduinoVideoRenderer/
+   - upload the video
+   - connect to arduino
+   - change the width/height based on your screen
+   - change dithering if needed
+   - click to `Start Streaming`
+   - it will start to send frames
 
 ## License
 This project is licensed under the MIT License (see `LICENSE`).
