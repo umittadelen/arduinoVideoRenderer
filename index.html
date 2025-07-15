@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Serial Video Sender</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap');
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: #fdf6f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        h1 {
+            color: #d16ba5;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .horizontal-flex {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input[type="file"],
+        select,
+        button,
+        label input {
+            font: inherit;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 2px 5px #00000010;
+            transition: 0.2s ease;
+        }
+
+        button {
+            background-color: #f7b2d9;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #f48fb1;
+            color: #fff;
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            box-shadow: 0 2px 5px #00000010;
+            border-radius: 8px;
+        }
+
+        .size-label span {
+            border: 1px solid #ccc;
+            border-radius: 8px 0 0 8px;
+            padding: 8px 12px;
+        }
+
+        .size-label input {
+            border: 1px solid #ccc;
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            box-shadow: none;
+            padding: 8px 12px;
+        }
+
+        #canvas {
+            border: 2px dashed #d16ba5;
+            margin-top: 10px;
+            image-rendering: pixelated;
+        }
+
+        #preview-canvas {
+            border: 2px dashed #d16ba5;
+            margin-top: 10px;
+            image-rendering: pixelated;
+        }
+
+        #log {
+            margin-top: 15px;
+            padding: 10px;
+            width: 100%;
+            max-width: 500px;
+            background: #fff0fa;
+            border: 1px solid #f48fb1;
+            border-radius: 8px;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        video {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Serial Video Sender</h1>
+    <input type="file" id="videoInput" accept="video/*">
+
+    <div class="horizontal-flex">
+        <button id="connectSerial">Connect Serial</button>
+        <button id="start">Start Streaming</button>
+    </div>
+    <select id="ditherType">
+        <option value="floyd">Floyd-Steinberg</option>
+        <option value="threshold">Threshold</option>
+        <option value="bayer">Bayer</option>
+        <option value="atkinson">Atkinson</option>
+    </select>
+
+    <div class="horizontal-flex">
+        <label class="size-label"><span>Width:</span><input type="number" id="screenWidth" value="128" min="8"
+                max="256"></label>
+        <label class="size-label"><span>Height:</span><input type="number" id="screenHeight" value="64" min="8"
+                max="128"></label>
+    </div>
+
+    <video id="video" width="320" controls style="display:none"></video>
+    <canvas id="canvas" width="128" height="64"></canvas>
+    <canvas id="preview-canvas" width="128" height="64"></canvas>
+    <pre id="log"></pre>
+    <script>
+        const HEADER = new Uint8Array([0xAA, 0x55, 0xAA, 0x55]);
+        let port, writer;
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let previewCanvas = document.getElementById('preview-canvas');
+        let previewctx = previewCanvas.getContext('2d');
+        let log = document.getElementById('log');
+        let currentStreamId = null;
+        let streamSession = 0;
+
+        document.getElementById('videoInput').onchange = e => {
+
+            let file = e.target.files[0];
+            if (file) {
+                video.src = URL.createObjectURL(file);
+                video.load();
+            }
+        };
+
+        document.getElementById('connectSerial').onclick = async () => {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                writer = port.writable.getWriter();
+                log.textContent += "Serial connected\n";
+            } catch (e) {
+                log.textContent += "Serial error: " + e + "\n";
+            }
+        };
+
+        // Dithering algorithms
+        function thresholdDither(imageData) {
+            let data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                let v = (gray > 127 ? 255 : 0);
+                data[i] = data[i + 1] = data[i + 2] = v;
+            }
+            return imageData;
+        }
+
+        function floydSteinbergDither(imageData, width, height) {
+            // Convert to grayscale float array
+            let data = imageData.data;
+            let gray = [];
+            for (let i = 0; i < data.length; i += 4) {
+                gray.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+            }
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let idx = y * width + x;
+                    let oldPixel = gray[idx];
+                    let newPixel = oldPixel > 127 ? 255 : 0;
+                    let err = oldPixel - newPixel;
+                    gray[idx] = newPixel;
+                    if (x + 1 < width) gray[idx + 1] += err * 7 / 16;
+                    if (y + 1 < height) {
+                        if (x > 0) gray[idx + width - 1] += err * 3 / 16;
+                        gray[idx + width] += err * 5 / 16;
+                        if (x + 1 < width) gray[idx + width + 1] += err * 1 / 16;
+                    }
+                }
+            }
+            for (let i = 0; i < gray.length; i++) {
+                let v = gray[i] > 127 ? 255 : 0;
+                data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v;
+            }
+            return imageData;
+        }
+
+        function bayerDither(imageData, width, height) {
+            // 4x4 Bayer matrix
+            const bayer = [
+                [15, 135, 45, 165],
+                [195, 75, 225, 105],
+                [60, 180, 30, 150],
+                [240, 120, 210, 90]
+            ];
+            let data = imageData.data;
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let idx = (y * width + x) * 4;
+                    let gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+                    let threshold = bayer[y % 4][x % 4];
+                    let v = (gray > threshold ? 255 : 0);
+                    data[idx] = data[idx + 1] = data[idx + 2] = v;
+                }
+            }
+            return imageData;
+        }
+
+        function atkinsonDither(imageData, width, height) {
+            let data = imageData.data;
+            let gray = [];
+            for (let i = 0; i < data.length; i += 4) {
+                gray.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+            }
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let idx = y * width + x;
+                    let oldPixel = gray[idx];
+                    let newPixel = oldPixel > 127 ? 255 : 0;
+                    let err = (oldPixel - newPixel) / 8;
+                    gray[idx] = newPixel;
+                    if (x + 1 < width) gray[idx + 1] += err;
+                    if (x + 2 < width) gray[idx + 2] += err;
+                    if (y + 1 < height) {
+                        if (x > 0) gray[idx + width - 1] += err;
+                        gray[idx + width] += err;
+                        if (x + 1 < width) gray[idx + width + 1] += err;
+                    }
+                    if (y + 2 < height) gray[idx + width * 2] += err;
+                }
+            }
+            for (let i = 0; i < gray.length; i++) {
+                let v = gray[i] > 127 ? 255 : 0;
+                data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v;
+            }
+            return imageData;
+        }
+
+        function applyDithering(imageData, type) {
+            let width = imageData.width;
+            let height = imageData.height;
+            if (type === "threshold") return thresholdDither(imageData);
+            if (type === "floyd") return floydSteinbergDither(imageData, width, height);
+            if (type === "bayer") return bayerDither(imageData, width, height);
+            if (type === "atkinson") return atkinsonDither(imageData, width, height);
+            return thresholdDither(imageData);
+        }
+
+        document.getElementById('start').onclick = async () => {
+            if (!video.src) return alert("Select a video first!");
+            if (!writer) return alert("Connect serial first!");
+
+            // Cancel old stream
+            streamSession++;
+            if (currentStreamId !== null) {
+                clearTimeout(currentStreamId);
+                currentStreamId = null;
+                video.pause();
+            }
+
+            let ditherType = document.getElementById('ditherType').value;
+            let width = parseInt(document.getElementById('screenWidth').value, 10);
+            let height = parseInt(document.getElementById('screenHeight').value, 10);
+
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.width = (width * 4) + 'px';
+            canvas.style.height = (height * 4) + 'px';
+
+            video.currentTime = 0;
+            video.play();
+
+            const sendFrame = async () => {
+                const thisSession = streamSession;
+                if (thisSession !== streamSession) return;
+
+                let videoAspect = video.videoWidth / video.videoHeight;
+                let targetAspect = width / height;
+                let drawWidth, drawHeight, offsetX, offsetY;
+
+                if (videoAspect > targetAspect) {
+                    drawWidth = width;
+                    drawHeight = Math.floor(width / videoAspect);
+                    offsetX = 0;
+                    offsetY = Math.floor((height - drawHeight) / 2);
+                } else {
+                    drawHeight = height;
+                    drawWidth = Math.floor(height * videoAspect);
+                    offsetY = 0;
+                    offsetX = Math.floor((width - drawWidth) / 2);
+                }
+
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+                
+                let imageData = ctx.getImageData(0, 0, width, height);
+                imageData = applyDithering(imageData, ditherType);
+                previewctx.putImageData(imageData, 0, 0);
+
+                let bytes = frameToSSD1309Bytes(imageData, width, height);
+                await writer.write(HEADER);
+                await writer.write(bytes);
+
+                log.textContent = `${HEADER}\n${bytes}`;
+
+                if (!video.paused && !video.ended && thisSession === streamSession) {
+                    currentStreamId = setTimeout(sendFrame, 1000 / 15); // 15 FPS
+                }
+            };
+
+            sendFrame();
+        };
+
+        window.addEventListener('beforeunload', async (e) => {
+            try {
+                streamSession++;
+                if (currentStreamId !== null) {
+                    clearTimeout(currentStreamId);
+                    currentStreamId = null;
+                }
+                video.pause();
+                if (writer) {
+                    await writer.releaseLock();
+                }
+                if (port && port.readable && port.writable) {
+                    await port.close();
+                    log.textContent += "Serial closed on refresh\n";
+                }
+            } catch (err) {
+                console.warn("Cleanup error:", err);
+            }
+        });
+
+        // Update frameToSSD1309Bytes to accept width and height
+        function frameToSSD1309Bytes(imageData, width, height) {
+            let packed = [];
+            for (let page = 0; page < height / 8; page++) {
+                for (let x = 0; x < width; x++) {
+                    let byte = 0;
+                    for (let bit = 0; bit < 8; bit++) {
+                        let y = page * 8 + bit;
+                        let idx = (y * width + x) * 4;
+                        let pixel = imageData.data[idx];
+                        byte |= ((pixel > 127 ? 1 : 0) << bit);
+                    }
+                    packed.push(byte);
+                }
+            }
+            return new Uint8Array(packed);
+        }
+    </script>
+</body>
+
+</html>
