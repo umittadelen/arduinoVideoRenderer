@@ -57,7 +57,10 @@ function applyDithering(imageData, type) {
 
 document.getElementById('start').onclick = async () => {
     if (!video.src) return alert("Select a video first!");
-    if (!writer) return alert("Connect serial first!");
+
+    if (!writer) {
+        log.textContent += "No serial connected, running preview only!\n";
+    }
 
     // Cancel old stream
     streamSession++;
@@ -108,10 +111,13 @@ document.getElementById('start').onclick = async () => {
         previewctx.putImageData(imageData, 0, 0);
 
         let bytes = frameToSSD1309Bytes(imageData, width, height);
-        await writer.write(HEADER);
-        await writer.write(bytes);
-
-        log.textContent = `${HEADER}\n${bytes}`;
+        if (writer) {
+            await writer.write(HEADER);
+            await writer.write(bytes);
+            log.textContent = `${HEADER}\n${bytes}`;
+        } else {
+            log.textContent = `Preview only mode\n`;
+        }
 
         if (!video.paused && !video.ended && thisSession === streamSession) {
             currentStreamId = setTimeout(sendFrame, 1000 / parseInt(document.getElementById('framesPerSecond').value, 10));
