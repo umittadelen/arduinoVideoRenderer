@@ -34,6 +34,18 @@ document.getElementById('connectSerial').onclick = async () => {
         log.textContent += "Serial error: " + e + "\n";
     }
 };
+document.getElementById('screenCapture').onclick = async () => {
+    try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: 30 }
+        });
+        video.srcObject = stream;
+        video.play();
+        log.textContent += "Live screen capture started\n";
+    } catch (err) {
+        log.textContent += "Screen capture failed: " + err + "\n";
+    }
+};
 
 // On page load, restore saved baud rate:
 window.addEventListener('load', () => {
@@ -56,7 +68,8 @@ function applyDithering(imageData, type) {
 }
 
 document.getElementById('start').onclick = async () => {
-    if (!video.src) return alert("Select a video first!");
+    if (!video.src && !video.srcObject) return alert("Load a video or capture screen first!");
+
 
     if (!writer) {
         log.textContent += "No serial connected, running preview only!\n";
