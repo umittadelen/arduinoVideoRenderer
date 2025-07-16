@@ -114,7 +114,7 @@ document.getElementById('start').onclick = async () => {
         log.textContent = `${HEADER}\n${bytes}`;
 
         if (!video.paused && !video.ended && thisSession === streamSession) {
-            currentStreamId = setTimeout(sendFrame, 1000 / parseInt(document.getElementById('framesPerSecond').value, 10)); // 15 FPS
+            currentStreamId = setTimeout(sendFrame, 1000 / parseInt(document.getElementById('framesPerSecond').value, 10));
         }
     };
 
