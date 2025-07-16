@@ -89,6 +89,16 @@
             padding: 8px 12px;
         }
 
+        .size-label select#ditherType {
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            box-shadow: none;
+            padding: 7px 12px;
+            height: 100%;
+        }
+
         #canvas {
             border: 2px dashed #d16ba5;
             margin-top: 10px;
@@ -131,12 +141,15 @@
         <button id="connectSerial">Connect Serial</button>
         <button id="start">Start Streaming</button>
     </div>
-    <select id="ditherType">
-        <option value="floyd">Floyd-Steinberg</option>
-        <option value="threshold">Threshold</option>
-        <option value="bayer">Bayer</option>
-        <option value="atkinson">Atkinson</option>
-    </select>
+
+    <label class="size-label"><span>Dithering:</span><select id="ditherType">
+            <option value="floyd">Floyd-Steinberg</option>
+            <option value="threshold">Threshold</option>
+            <option value="bayer">Bayer</option>
+            <option value="atkinson">Atkinson</option>
+            <option value="random">random</option>
+            <option value="line">line</option>
+        </select></label>
 
     <div class="horizontal-flex">
         <label class="size-label"><span>Width:</span><input type="number" id="screenWidth" value="128" min="8"
@@ -151,258 +164,8 @@
     <canvas id="canvas" width="128" height="64"></canvas>
     <canvas id="preview-canvas" width="128" height="64"></canvas>
     <pre id="log"></pre>
-    <script>
-        const HEADER = new Uint8Array([0xAA, 0x55, 0xAA, 0x55]);
-        let port, writer;
-        let video = document.getElementById('video');
-        let canvas = document.getElementById('canvas');
-        let ctx = canvas.getContext('2d');
-        let previewCanvas = document.getElementById('preview-canvas');
-        let previewctx = previewCanvas.getContext('2d');
-        let log = document.getElementById('log');
-        let currentStreamId = null;
-        let streamSession = 0;
-
-        document.getElementById('videoInput').onchange = e => {
-
-            let file = e.target.files[0];
-            if (file) {
-                video.src = URL.createObjectURL(file);
-                video.load();
-            }
-        };
-
-        document.getElementById('connectSerial').onclick = async () => {
-            try {
-                const baudRate = parseInt(document.getElementById('BaudRate').value, 10);
-                // Save baud rate to localStorage
-                localStorage.setItem('lastBaudRate', baudRate);
-
-                port = await navigator.serial.requestPort();
-                await port.open({ baudRate: baudRate });
-                writer = port.writable.getWriter();
-                log.textContent += "Serial connected\n";
-            } catch (e) {
-                log.textContent += "Serial error: " + e + "\n";
-            }
-        };
-
-        // On page load, restore saved baud rate:
-        window.addEventListener('load', () => {
-            const savedBaudRate = localStorage.getItem('lastBaudRate');
-            if (savedBaudRate) {
-                document.getElementById('BaudRate').value = savedBaudRate;
-            }
-        });
-
-        // Dithering algorithms
-        function thresholdDither(imageData) {
-            let data = imageData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                let v = (gray > 127 ? 255 : 0);
-                data[i] = data[i + 1] = data[i + 2] = v;
-            }
-            return imageData;
-        }
-
-        function floydSteinbergDither(imageData, width, height) {
-            // Convert to grayscale float array
-            let data = imageData.data;
-            let gray = [];
-            for (let i = 0; i < data.length; i += 4) {
-                gray.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-            }
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    let idx = y * width + x;
-                    let oldPixel = gray[idx];
-                    let newPixel = oldPixel > 127 ? 255 : 0;
-                    let err = oldPixel - newPixel;
-                    gray[idx] = newPixel;
-                    if (x + 1 < width) gray[idx + 1] += err * 7 / 16;
-                    if (y + 1 < height) {
-                        if (x > 0) gray[idx + width - 1] += err * 3 / 16;
-                        gray[idx + width] += err * 5 / 16;
-                        if (x + 1 < width) gray[idx + width + 1] += err * 1 / 16;
-                    }
-                }
-            }
-            for (let i = 0; i < gray.length; i++) {
-                let v = gray[i] > 127 ? 255 : 0;
-                data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v;
-            }
-            return imageData;
-        }
-
-        function bayerDither(imageData, width, height) {
-            // 4x4 Bayer matrix
-            const bayer = [
-                [15, 135, 45, 165],
-                [195, 75, 225, 105],
-                [60, 180, 30, 150],
-                [240, 120, 210, 90]
-            ];
-            let data = imageData.data;
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    let idx = (y * width + x) * 4;
-                    let gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-                    let threshold = bayer[y % 4][x % 4];
-                    let v = (gray > threshold ? 255 : 0);
-                    data[idx] = data[idx + 1] = data[idx + 2] = v;
-                }
-            }
-            return imageData;
-        }
-
-        function atkinsonDither(imageData, width, height) {
-            let data = imageData.data;
-            let gray = [];
-            for (let i = 0; i < data.length; i += 4) {
-                gray.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-            }
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    let idx = y * width + x;
-                    let oldPixel = gray[idx];
-                    let newPixel = oldPixel > 127 ? 255 : 0;
-                    let err = (oldPixel - newPixel) / 8;
-                    gray[idx] = newPixel;
-                    if (x + 1 < width) gray[idx + 1] += err;
-                    if (x + 2 < width) gray[idx + 2] += err;
-                    if (y + 1 < height) {
-                        if (x > 0) gray[idx + width - 1] += err;
-                        gray[idx + width] += err;
-                        if (x + 1 < width) gray[idx + width + 1] += err;
-                    }
-                    if (y + 2 < height) gray[idx + width * 2] += err;
-                }
-            }
-            for (let i = 0; i < gray.length; i++) {
-                let v = gray[i] > 127 ? 255 : 0;
-                data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v;
-            }
-            return imageData;
-        }
-
-        function applyDithering(imageData, type) {
-            let width = imageData.width;
-            let height = imageData.height;
-            if (type === "threshold") return thresholdDither(imageData);
-            if (type === "floyd") return floydSteinbergDither(imageData, width, height);
-            if (type === "bayer") return bayerDither(imageData, width, height);
-            if (type === "atkinson") return atkinsonDither(imageData, width, height);
-            return thresholdDither(imageData);
-        }
-
-        document.getElementById('start').onclick = async () => {
-            if (!video.src) return alert("Select a video first!");
-            if (!writer) return alert("Connect serial first!");
-
-            // Cancel old stream
-            streamSession++;
-            if (currentStreamId !== null) {
-                clearTimeout(currentStreamId);
-                currentStreamId = null;
-                video.pause();
-            }
-
-            let ditherType = document.getElementById('ditherType').value;
-            let width = parseInt(document.getElementById('screenWidth').value, 10);
-            let height = parseInt(document.getElementById('screenHeight').value, 10);
-
-            canvas.width = width;
-            canvas.height = height;
-            canvas.style.width = (width * 4) + 'px';
-            canvas.style.height = (height * 4) + 'px';
-
-            video.currentTime = 0;
-            video.play();
-
-            const sendFrame = async () => {
-                const thisSession = streamSession;
-                if (thisSession !== streamSession) return;
-
-                let videoAspect = video.videoWidth / video.videoHeight;
-                let targetAspect = width / height;
-                let drawWidth, drawHeight, offsetX, offsetY;
-
-                if (videoAspect > targetAspect) {
-                    drawWidth = width;
-                    drawHeight = Math.floor(width / videoAspect);
-                    offsetX = 0;
-                    offsetY = Math.floor((height - drawHeight) / 2);
-                } else {
-                    drawHeight = height;
-                    drawWidth = Math.floor(height * videoAspect);
-                    offsetY = 0;
-                    offsetX = Math.floor((width - drawWidth) / 2);
-                }
-
-                ctx.fillStyle = 'black';
-                ctx.fillRect(0, 0, width, height);
-                ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
-
-                let imageData = ctx.getImageData(0, 0, width, height);
-                imageData = applyDithering(imageData, ditherType);
-                previewctx.putImageData(imageData, 0, 0);
-
-                let bytes = frameToSSD1309Bytes(imageData, width, height);
-                await writer.write(HEADER);
-                await writer.write(bytes);
-
-                log.textContent = `${HEADER}\n${bytes}`;
-
-                if (!video.paused && !video.ended && thisSession === streamSession) {
-                    currentStreamId = setTimeout(sendFrame, 1000 / parseInt(document.getElementById('framesPerSecond').value, 10)); // 15 FPS
-                }
-            };
-
-            sendFrame();
-        };
-
-        window.addEventListener('beforeunload', (e) => {
-            try {
-                streamSession++;
-                if (currentStreamId !== null) {
-                    clearTimeout(currentStreamId);
-                    currentStreamId = null;
-                }
-                video.pause();
-
-                // Fire async but don't await (may or may not complete before unload)
-                if (writer) {
-                    writer.releaseLock();  // don't await, just call
-                }
-                if (port && port.readable && port.writable) {
-                    port.close(); // again no await
-                    log.textContent += "Serial closed on refresh\n";
-                }
-            } catch (err) {
-                console.warn("Cleanup error:", err);
-            }
-        });
-
-
-        // Update frameToSSD1309Bytes to accept width and height
-        function frameToSSD1309Bytes(imageData, width, height) {
-            let packed = [];
-            for (let page = 0; page < height / 8; page++) {
-                for (let x = 0; x < width; x++) {
-                    let byte = 0;
-                    for (let bit = 0; bit < 8; bit++) {
-                        let y = page * 8 + bit;
-                        let idx = (y * width + x) * 4;
-                        let pixel = imageData.data[idx];
-                        byte |= ((pixel > 127 ? 1 : 0) << bit);
-                    }
-                    packed.push(byte);
-                }
-            }
-            return new Uint8Array(packed);
-        }
-    </script>
+    <script type="module" src="./js/dither.js"></script>
+    <script type="module" src="./js/main.js"></script>
 </body>
 
 </html>

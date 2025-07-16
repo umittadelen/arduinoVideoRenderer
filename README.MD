@@ -11,7 +11,7 @@ This repository contains all the required files and resources for building a vid
 
 - `receive/`
   - `receive.ino`: Arduino sketch for the project
-- `send.py`: Python code to send the frames if website doesnt work
+- `index.html`: Just go to https://umittadelen.github.io/arduinoVideoRenderer/
 
 ## Getting Started
 
