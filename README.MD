@@ -26,7 +26,7 @@ This repository contains all the required files and resources for building a vid
             5 | #define BAUD_RATE 1000000
             6 | const int frameSize = 128 * 64 / 8;
         ```
-        **_Note:_** mega 2560 can handle 1M baud rate without issues. (adjust it based on your board)
+        **_Note:_** mega 2560 can handle 1M baud rate with 20fps without issues. (adjust it based on your board)
    - Upload the code to your Arduino board.
 
 3. **Usage:**
