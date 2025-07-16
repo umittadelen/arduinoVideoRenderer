@@ -1,0 +1,26 @@
+{
+    "configurations": [
+        {
+            "name": "Arduino MEGA 2560",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Users/umitt/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino",
+                "C:/Users/umitt/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.6/variants/mega",
+                "C:/Users/umitt/Documents/Arduino/libraries/**",
+                "C:/Users/umitt/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.6/libraries/Wire/src"
+            ],
+            "defines": [
+                "ARDUINO=10819",
+                "F_CPU=16000000L",
+                "ARDUINO_AVR_MEGA2560",
+                "ARDUINO_ARCH_AVR",
+                "USBCON"
+            ],
+            "compilerPath": "C:/Users/umitt/AppData/Local/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/bin/avr-gcc.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}

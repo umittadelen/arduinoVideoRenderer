@@ -23,8 +23,10 @@ This repository contains all the required files and resources for building a vid
    - Change this lines based on your screen:
       - ```c++ 
             4 | U8G2_SSD1309_128X64_NONAME0_F_HW_I2C u8g2(U8G2_R0);
+            5 | #define BAUD_RATE 1000000
             6 | const int frameSize = 128 * 64 / 8;
         ```
+        **_Note:_** mega 2560 can handle 1M baud rate without issues. (adjust it based on your board)
    - Upload the code to your Arduino board.
 
 3. **Usage:**

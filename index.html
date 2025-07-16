@@ -21,8 +21,12 @@
 
         h1 {
             color: #d16ba5;
-            font-size: 2em;
-            margin-bottom: 20px;
+            font-size: 3em;
+            margin-bottom: 0px;
+        }
+
+        p#info {
+            margin-top: 0;
         }
 
         .controls {
@@ -118,9 +122,12 @@
 
 <body>
     <h1>Serial Video Sender</h1>
+    <p id="info">Make sure to upload arduino code first</p>
     <input type="file" id="videoInput" accept="video/*">
 
     <div class="horizontal-flex">
+        <label class="size-label"><span>Baud Rate:</span><input type="number" id="BaudRate" value="115200"
+                placeholder="BAUD_RATE in .ino"></label>
         <button id="connectSerial">Connect Serial</button>
         <button id="start">Start Streaming</button>
     </div>
@@ -136,6 +143,8 @@
                 max="256"></label>
         <label class="size-label"><span>Height:</span><input type="number" id="screenHeight" value="64" min="8"
                 max="128"></label>
+        <label class="size-label"><span>FPS:</span><input type="number" id="framesPerSecond" value="20" min="1"
+                max="20"></label>
     </div>
 
     <video id="video" width="320" controls style="display:none"></video>
@@ -165,14 +174,26 @@
 
         document.getElementById('connectSerial').onclick = async () => {
             try {
+                const baudRate = parseInt(document.getElementById('BaudRate').value, 10);
+                // Save baud rate to localStorage
+                localStorage.setItem('lastBaudRate', baudRate);
+
                 port = await navigator.serial.requestPort();
-                await port.open({ baudRate: 115200 });
+                await port.open({ baudRate: baudRate });
                 writer = port.writable.getWriter();
                 log.textContent += "Serial connected\n";
             } catch (e) {
                 log.textContent += "Serial error: " + e + "\n";
             }
         };
+
+        // On page load, restore saved baud rate:
+        window.addEventListener('load', () => {
+            const savedBaudRate = localStorage.getItem('lastBaudRate');
+            if (savedBaudRate) {
+                document.getElementById('BaudRate').value = savedBaudRate;
+            }
+        });
 
         // Dithering algorithms
         function thresholdDither(imageData) {
@@ -322,7 +343,7 @@
                 ctx.fillStyle = 'black';
                 ctx.fillRect(0, 0, width, height);
                 ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
-                
+
                 let imageData = ctx.getImageData(0, 0, width, height);
                 imageData = applyDithering(imageData, ditherType);
                 previewctx.putImageData(imageData, 0, 0);
@@ -334,14 +355,14 @@
                 log.textContent = `${HEADER}\n${bytes}`;
 
                 if (!video.paused && !video.ended && thisSession === streamSession) {
-                    currentStreamId = setTimeout(sendFrame, 1000 / 15); // 15 FPS
+                    currentStreamId = setTimeout(sendFrame, 1000 / parseInt(document.getElementById('framesPerSecond').value, 10)); // 15 FPS
                 }
             };
 
             sendFrame();
         };
 
-        window.addEventListener('beforeunload', async (e) => {
+        window.addEventListener('beforeunload', (e) => {
             try {
                 streamSession++;
                 if (currentStreamId !== null) {
@@ -349,17 +370,20 @@
                     currentStreamId = null;
                 }
                 video.pause();
+
+                // Fire async but don't await (may or may not complete before unload)
                 if (writer) {
-                    await writer.releaseLock();
+                    writer.releaseLock();  // don't await, just call
                 }
                 if (port && port.readable && port.writable) {
-                    await port.close();
+                    port.close(); // again no await
                     log.textContent += "Serial closed on refresh\n";
                 }
             } catch (err) {
                 console.warn("Cleanup error:", err);
             }
         });
+
 
         // Update frameToSSD1309Bytes to accept width and height
         function frameToSSD1309Bytes(imageData, width, height) {

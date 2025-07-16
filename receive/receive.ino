@@ -2,7 +2,7 @@
 #include <Wire.h>
 
 U8G2_SSD1309_128X64_NONAME0_F_HW_I2C u8g2(U8G2_R0);
-
+#define BAUD_RATE 1000000
 const int frameSize = 128 * 64 / 8;
 byte frameBuffer[frameSize];
 
@@ -14,7 +14,7 @@ int frameIndex = 0;
 bool receivingFrame = false;
 
 unsigned long frameStartTime = 0;
-const unsigned long FRAME_TIMEOUT_MS = 1000;  // Increased for safety
+const unsigned long FRAME_TIMEOUT_MS = 500;  // Increased for safety
 
 void resetReceiver() {
   receivingFrame = false;
@@ -24,7 +24,7 @@ void resetReceiver() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(BAUD_RATE);
   u8g2.begin();
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_ncenB08_tr);
