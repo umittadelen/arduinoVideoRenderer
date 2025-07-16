@@ -71,6 +71,7 @@
             display: flex;
             align-items: center;
             gap: 0;
+            background-color: #f7b2d9;
             box-shadow: 0 2px 5px #00000010;
             border-radius: 8px;
         }
@@ -161,8 +162,12 @@
     </div>
 
     <video id="video" width="320" controls style="display:none"></video>
-    <canvas id="canvas" width="128" height="64"></canvas>
-    <canvas id="preview-canvas" width="128" height="64"></canvas>
+
+    <div class="horizontal-flex">
+        <canvas id="canvas" width="128" height="64"></canvas>
+        <canvas id="preview-canvas" width="128" height="64"></canvas>
+    </div>
+
     <pre id="log"></pre>
     <script type="module" src="./js/dither.js"></script>
     <script type="module" src="./js/main.js"></script>

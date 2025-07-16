@@ -43,8 +43,6 @@ window.addEventListener('load', () => {
     }
 });
 
-
-
 function applyDithering(imageData, type) {
     let width = imageData.width;
     let height = imageData.height;
@@ -75,8 +73,8 @@ document.getElementById('start').onclick = async () => {
 
     canvas.width = width;
     canvas.height = height;
-    canvas.style.width = (width * 4) + 'px';
-    canvas.style.height = (height * 4) + 'px';
+    previewCanvas.width = width;
+    previewCanvas.height = height;
 
     video.currentTime = 0;
     video.play();
