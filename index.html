@@ -67,7 +67,7 @@
             color: #fff;
         }
 
-        label {
+        .size-label {
             display: flex;
             align-items: center;
             gap: 0;
@@ -100,15 +100,24 @@
             height: 100%;
         }
 
-        #canvas {
-            border: 2px dashed #d16ba5;
-            margin-top: 10px;
-            image-rendering: pixelated;
+        .canvas-label span {
+            padding: 8px;
         }
 
-        #preview-canvas {
-            border: 2px dashed #d16ba5;
-            margin-top: 10px;
+        .canvas-label span {
+            height: auto;
+            border: none;
+            border-radius: 0 8px 8px 0;
+            padding: 8px auto;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            text-align: center;
+            align-items: center;
+        }
+
+        canvas {
+            margin: 6px 6px 6px 0;
+            border: 1px dashed #d16ba5;
             image-rendering: pixelated;
         }
 
@@ -164,8 +173,8 @@
     <video id="video" width="320" controls style="display:none"></video>
 
     <div class="horizontal-flex">
-        <canvas id="canvas" width="128" height="64"></canvas>
-        <canvas id="preview-canvas" width="128" height="64"></canvas>
+        <label class="size-label canvas-label"><span>Original:</span><canvas id="canvas" width="128" height="64"></canvas></label>
+        <label class="size-label canvas-label"><span>Preview:</span><canvas id="preview-canvas" width="128" height="64"></canvas></label>
     </div>
 
     <pre id="log"></pre>
