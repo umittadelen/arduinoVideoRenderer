@@ -120,4 +120,16 @@ function lineDither(imageData, direction = "vertical") {
     return imageData;
 }
 
-export {thresholdDither, floydSteinbergDither, bayerDither, atkinsonDither, randomDither, lineDither};
+function applyDithering(imageData, type) {
+    let width = imageData.width;
+    let height = imageData.height;
+    if (type === "threshold") return thresholdDither(imageData);
+    if (type === "floyd") return floydSteinbergDither(imageData, width, height);
+    if (type === "bayer") return bayerDither(imageData, width, height);
+    if (type === "atkinson") return atkinsonDither(imageData, width, height);
+    if (type === "random") return randomDither(imageData, width, height);
+    if (type === "line") return lineDither(imageData, width, height);
+    return floydSteinbergDither(imageData);
+}
+
+export {applyDithering};

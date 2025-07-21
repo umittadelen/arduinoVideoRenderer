@@ -153,22 +153,21 @@
         <button id="screenCapture">Capture Screen</button>
     </div>
 
-    <label class="size-label"><span>Dithering:</span><select id="ditherType">
+    <label class="size-label"><span>Dithering:</span>
+        <select id="ditherType">
             <option value="floyd">Floyd-Steinberg</option>
             <option value="threshold">Threshold</option>
             <option value="bayer">Bayer</option>
             <option value="atkinson">Atkinson</option>
             <option value="random">random</option>
             <option value="line">line</option>
-        </select></label>
+        </select>
+    </label>
 
     <div class="horizontal-flex">
-        <label class="size-label"><span>Width:</span><input type="number" id="screenWidth" value="128" min="8"
-                max="256"></label>
-        <label class="size-label"><span>Height:</span><input type="number" id="screenHeight" value="64" min="8"
-                max="128"></label>
-        <label class="size-label"><span>FPS:</span><input type="number" id="framesPerSecond" value="20" min="1"
-                max="20"></label>
+        <label class="size-label"><span>Width:</span><input type="number" id="screenWidth" value="128" min="8" max="256"></label>
+        <label class="size-label"><span>Height:</span><input type="number" id="screenHeight" value="64" min="8" max="128"></label>
+        <label class="size-label"><span>FPS:</span><input type="number" id="framesPerSecond" value="20" min="1" max="20"></label>
     </div>
 
     <video id="video" width="320" controls style="display:none"></video>

@@ -1,4 +1,4 @@
-import {thresholdDither, floydSteinbergDither, bayerDither, atkinsonDither, randomDither, lineDither} from './dither.js';
+import {applyDithering} from './dither.js';
 
 const HEADER = new Uint8Array([0xAA, 0x55, 0xAA, 0x55]);
 let port, writer;
@@ -54,18 +54,6 @@ window.addEventListener('load', () => {
         document.getElementById('BaudRate').value = savedBaudRate;
     }
 });
-
-function applyDithering(imageData, type) {
-    let width = imageData.width;
-    let height = imageData.height;
-    if (type === "threshold") return thresholdDither(imageData);
-    if (type === "floyd") return floydSteinbergDither(imageData, width, height);
-    if (type === "bayer") return bayerDither(imageData, width, height);
-    if (type === "atkinson") return atkinsonDither(imageData, width, height);
-    if (type === "random") return randomDither(imageData, width, height);
-    if (type === "line") return lineDither(imageData, width, height);
-    return thresholdDither(imageData);
-}
 
 document.getElementById('start').onclick = async () => {
     if (!video.src && !video.srcObject) return alert("Load a video or capture screen first!");
