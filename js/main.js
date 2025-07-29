@@ -71,7 +71,6 @@ document.getElementById('start').onclick = async () => {
         video.pause();
     }
 
-    let ditherType = document.getElementById('ditherType').value;
     let width = parseInt(document.getElementById('screenWidth').value, 10);
     let height = parseInt(document.getElementById('screenHeight').value, 10);
 
@@ -92,6 +91,7 @@ document.getElementById('start').onclick = async () => {
         if (thisSession !== streamSession) return;
 
         const fps = parseInt(document.getElementById('framesPerSecond').value, 10);
+        let ditherType = document.getElementById('ditherType').value;
         const frameInterval = 1000 / fps;
         const now = performance.now();
         let nextDelay = frameInterval - (now - lastFrameTime);
