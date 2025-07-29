@@ -83,45 +83,73 @@ document.getElementById('start').onclick = async () => {
     video.currentTime = 0;
     video.play();
 
+    log.textContent = `Starting stream...\n`;
+
+    let frameCount = 0;
+    let lastFrameTime = performance.now();
     const sendFrame = async () => {
         const thisSession = streamSession;
         if (thisSession !== streamSession) return;
 
-        let videoAspect = video.videoWidth / video.videoHeight;
-        let targetAspect = width / height;
-        let drawWidth, drawHeight, offsetX, offsetY;
+        const fps = parseInt(document.getElementById('framesPerSecond').value, 10);
+        const frameInterval = 1000 / fps;
+        const now = performance.now();
+        let nextDelay = frameInterval - (now - lastFrameTime);
+        if (nextDelay < 0) nextDelay = 0;
 
-        if (videoAspect > targetAspect) {
-            drawWidth = width;
-            drawHeight = Math.floor(width / videoAspect);
-            offsetX = 0;
-            offsetY = Math.floor((height - drawHeight) / 2);
-        } else {
-            drawHeight = height;
-            drawWidth = Math.floor(height * videoAspect);
-            offsetY = 0;
-            offsetX = Math.floor((width - drawWidth) / 2);
-        }
+        if (writer && port && port.readable && port.writable) {
+            let videoAspect = video.videoWidth / video.videoHeight;
+            let targetAspect = width / height;
+            let drawWidth, drawHeight, offsetX, offsetY;
 
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+            if (videoAspect > targetAspect) {
+                drawWidth = width;
+                drawHeight = Math.floor(width / videoAspect);
+                offsetX = 0;
+                offsetY = Math.floor((height - drawHeight) / 2);
+            } else {
+                drawHeight = height;
+                drawWidth = Math.floor(height * videoAspect);
+                offsetY = 0;
+                offsetX = Math.floor((width - drawWidth) / 2);
+            }
 
-        let imageData = ctx.getImageData(0, 0, width, height);
-        imageData = applyDithering(imageData, ditherType);
-        previewctx.putImageData(imageData, 0, 0);
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
 
-        let bytes = frameToSSD1309Bytes(imageData, width, height);
-        if (writer) {
-            await writer.write(HEADER);
-            await writer.write(bytes);
-            log.textContent = `${HEADER}\n${bytes}`;
+            let imageData = ctx.getImageData(0, 0, width, height);
+            imageData = applyDithering(imageData, ditherType);
+            previewctx.putImageData(imageData, 0, 0);
+
+            let bytes = frameToSSD1309Bytes(imageData, width, height);
+            try {
+                let out = new Uint8Array(HEADER.length + bytes.length);
+                out.set(HEADER, 0);
+                out.set(bytes, HEADER.length);
+                await writer.write(out);
+                frameCount++;
+            } catch (err) {
+                log.textContent += `\nSerial disconnected or error: ${err}`;
+                streamSession++;
+                if (currentStreamId !== null) {
+                    clearTimeout(currentStreamId);
+                    currentStreamId = null;
+                }
+                video.pause();
+                writer = null;
+                port = null;
+                return;
+            }
         } else {
             log.textContent = `Preview only mode\n`;
         }
 
         if (!video.paused && !video.ended && thisSession === streamSession) {
-            currentStreamId = setTimeout(sendFrame, 1000 / parseInt(document.getElementById('framesPerSecond').value, 10));
+            currentStreamId = setTimeout(() => {
+                lastFrameTime = performance.now();
+                sendFrame();
+            }, nextDelay);
         }
     };
 
@@ -137,12 +165,11 @@ window.addEventListener('beforeunload', (e) => {
         }
         video.pause();
 
-        // Fire async but don't await (may or may not complete before unload)
         if (writer) {
-            writer.releaseLock();  // don't await, just call
+            writer.releaseLock();
         }
         if (port && port.readable && port.writable) {
-            port.close(); // again no await
+            port.close();
             log.textContent += "Serial closed on refresh\n";
         }
     } catch (err) {
@@ -151,20 +178,21 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 
-// Update frameToSSD1309Bytes to accept width and height
 function frameToSSD1309Bytes(imageData, width, height) {
-    let packed = [];
-    for (let page = 0; page < height / 8; page++) {
+    const pages = height >> 3;
+    const packed = new Uint8Array(width * pages);
+    let i = 0;
+    for (let page = 0; page < pages; page++) {
         for (let x = 0; x < width; x++) {
             let byte = 0;
             for (let bit = 0; bit < 8; bit++) {
-                let y = page * 8 + bit;
+                let y = (page << 3) + bit;
                 let idx = (y * width + x) * 4;
                 let pixel = imageData.data[idx];
                 byte |= ((pixel > 127 ? 1 : 0) << bit);
             }
-            packed.push(byte);
+            packed[i++] = byte;
         }
     }
-    return new Uint8Array(packed);
+    return packed;
 }
