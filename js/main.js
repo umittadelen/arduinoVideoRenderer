@@ -97,32 +97,32 @@ document.getElementById('start').onclick = async () => {
         let nextDelay = frameInterval - (now - lastFrameTime);
         if (nextDelay < 0) nextDelay = 0;
 
+        let videoAspect = video.videoWidth / video.videoHeight;
+        let targetAspect = width / height;
+        let drawWidth, drawHeight, offsetX, offsetY;
+
+        if (videoAspect > targetAspect) {
+            drawWidth = width;
+            drawHeight = Math.floor(width / videoAspect);
+            offsetX = 0;
+            offsetY = Math.floor((height - drawHeight) / 2);
+        } else {
+            drawHeight = height;
+            drawWidth = Math.floor(height * videoAspect);
+            offsetY = 0;
+            offsetX = Math.floor((width - drawWidth) / 2);
+        }
+
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+
+        let imageData = ctx.getImageData(0, 0, width, height);
+        imageData = applyDithering(imageData, ditherType);
+        previewctx.putImageData(imageData, 0, 0);
+
+        let bytes = frameToSSD1309Bytes(imageData, width, height);
         if (writer && port && port.readable && port.writable) {
-            let videoAspect = video.videoWidth / video.videoHeight;
-            let targetAspect = width / height;
-            let drawWidth, drawHeight, offsetX, offsetY;
-
-            if (videoAspect > targetAspect) {
-                drawWidth = width;
-                drawHeight = Math.floor(width / videoAspect);
-                offsetX = 0;
-                offsetY = Math.floor((height - drawHeight) / 2);
-            } else {
-                drawHeight = height;
-                drawWidth = Math.floor(height * videoAspect);
-                offsetY = 0;
-                offsetX = Math.floor((width - drawWidth) / 2);
-            }
-
-            ctx.fillStyle = 'black';
-            ctx.fillRect(0, 0, width, height);
-            ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
-
-            let imageData = ctx.getImageData(0, 0, width, height);
-            imageData = applyDithering(imageData, ditherType);
-            previewctx.putImageData(imageData, 0, 0);
-
-            let bytes = frameToSSD1309Bytes(imageData, width, height);
             try {
                 let out = new Uint8Array(HEADER.length + bytes.length);
                 out.set(HEADER, 0);
@@ -142,7 +142,7 @@ document.getElementById('start').onclick = async () => {
                 return;
             }
         } else {
-            log.textContent = `Preview only mode\n`;
+            log.textContent += `\nNo serial connected, running preview only!`;
         }
 
         if (!video.paused && !video.ended && thisSession === streamSession) {

@@ -28,8 +28,8 @@ void setup() {
   Serial.begin(BAUD_RATE);
   u8g2.begin();
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_ncenB08_tr);
-  u8g2.drawStr(10, 30, "Waiting...");
+  u8g2.setFont(u8g2_font_ncenR08_tr);
+  u8g2.drawStr(0, 30, "waiting for connection...");
   u8g2.sendBuffer();
 }
 
