@@ -141,7 +141,7 @@ document.getElementById('start').onclick = async () => {
                 out.set(HEADER, 0);
                 out.set(bytes, HEADER.length);
                 await writer.write(out);
-                await waitForAck(); // 🛑✋ wait for Arduino to finish processing frame
+                await waitForAck(); // wait for Arduino to finish processing frame
                 frameCount++;
             } catch (err) {
                 log.textContent += `\nSerial disconnected or error: ${err}`;
