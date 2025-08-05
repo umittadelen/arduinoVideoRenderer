@@ -137,12 +137,19 @@
         video {
             display: none;
         }
+
+        .linkspan {
+            color: #d16ba5;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: underline;
+        }
     </style>
 </head>
 
 <body>
     <h1>Serial Video Sender</h1>
-    <p id="info">Make sure to upload arduino code first</p>
+    <p id="info">Make sure to upload the <span class="linkspan" onclick="window.location.href='https://github.com/umittadelen/arduinoVideoRenderer/blob/main/receive/receive.ino'">arduino code</span> first</p>
     <input type="file" id="videoInput" accept="video/*">
 
     <div class="horizontal-flex">
