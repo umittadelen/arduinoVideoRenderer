@@ -55,6 +55,19 @@ window.addEventListener('load', () => {
     }
 });
 
+async function waitForAck() {
+    const reader = port.readable.getReader();
+    try {
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (value && value[0] === 0xAC) break;  // 0xAC = ACK
+        }
+    } finally {
+        reader.releaseLock();  // release so future reads won't crash
+    }
+}
+
 document.getElementById('start').onclick = async () => {
     if (!video.src && !video.srcObject) return alert("Load a video or capture screen first!");
 
@@ -128,6 +141,7 @@ document.getElementById('start').onclick = async () => {
                 out.set(HEADER, 0);
                 out.set(bytes, HEADER.length);
                 await writer.write(out);
+                await waitForAck(); // 🛑✋ wait for Arduino to finish processing frame
                 frameCount++;
             } catch (err) {
                 log.textContent += `\nSerial disconnected or error: ${err}`;
@@ -142,7 +156,7 @@ document.getElementById('start').onclick = async () => {
                 return;
             }
         } else {
-            log.textContent += `\nNo serial connected, running preview only!`;
+            log.textContent = `\nNo serial connected, running preview only!`;
         }
 
         if (!video.paused && !video.ended && thisSession === streamSession) {
