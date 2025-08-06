@@ -1,9 +1,10 @@
 // Dithering algorithms
-function thresholdDither(imageData) {
+function thresholdDither(imageData, percentage = 50) {
     let data = imageData.data;
+    let threshold = Math.round((percentage / 100) * 255);
     for (let i = 0; i < data.length; i += 4) {
         let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        let v = (gray > 127 ? 255 : 0);
+        let v = (gray > threshold ? 255 : 0);
         data[i] = data[i + 1] = data[i + 2] = v;
     }
     return imageData;
@@ -120,15 +121,24 @@ function lineDither(imageData, direction = "vertical") {
     return imageData;
 }
 
-function applyDithering(imageData, type) {
+function noDither(imageData) {
+    return imageData;
+}
+
+function applyDithering(imageData, type, options = {}) {
     let width = imageData.width;
     let height = imageData.height;
-    if (type === "threshold") return thresholdDither(imageData);
+    if (type === "threshold10") return thresholdDither(imageData, 10);
+    if (type === "threshold25") return thresholdDither(imageData, 25);
+    if (type === "threshold33") return thresholdDither(imageData, 33);
+    if (type === "threshold50") return thresholdDither(imageData, 50);
+    if (type === "threshold75") return thresholdDither(imageData, 75);
     if (type === "floyd") return floydSteinbergDither(imageData, width, height);
     if (type === "bayer") return bayerDither(imageData, width, height);
     if (type === "atkinson") return atkinsonDither(imageData, width, height);
     if (type === "random") return randomDither(imageData, width, height);
     if (type === "line") return lineDither(imageData, width, height);
+    if (type === "none") return noDither(imageData);
     return floydSteinbergDither(imageData);
 }
 
