@@ -4,193 +4,80 @@
 <head>
     <meta charset="UTF-8">
     <title>Serial Video Sender</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap');
-
-        body {
-            font-family: 'Quicksand', sans-serif;
-            background: #fdf6f9;
-            color: #333;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            align-items: center;
-        }
-
-        h1 {
-            color: #d16ba5;
-            font-size: 3em;
-            margin-bottom: 0px;
-        }
-
-        p#info {
-            margin-top: 0;
-        }
-
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .horizontal-flex {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        input[type="file"],
-        select,
-        button,
-        label input {
-            font: inherit;
-            padding: 8px 12px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            background: #fff;
-            box-shadow: 0 2px 5px #00000010;
-            transition: 0.2s ease;
-        }
-
-        button {
-            background-color: #f7b2d9;
-            border: none;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #f48fb1;
-            color: #fff;
-        }
-
-        .size-label {
-            display: flex;
-            align-items: center;
-            gap: 0;
-            background-color: #f7b2d9;
-            box-shadow: 0 2px 5px #00000010;
-            border-radius: 8px;
-        }
-
-        .size-label span {
-            border: 1px solid #ccc;
-            border-radius: 8px 0 0 8px;
-            padding: 8px 12px;
-        }
-
-        .size-label input {
-            border: 1px solid #ccc;
-            border-left: none;
-            border-radius: 0 8px 8px 0;
-            box-shadow: none;
-            padding: 8px 12px;
-        }
-
-        .size-label select#ditherType {
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-left: none;
-            border-radius: 0 8px 8px 0;
-            box-shadow: none;
-            padding: 7px 12px;
-            height: 100%;
-        }
-
-        .canvas-label span {
-            padding: 8px;
-        }
-
-        .canvas-label span {
-            height: auto;
-            border: none;
-            border-radius: 0 8px 8px 0;
-            padding: 8px auto;
-            writing-mode: vertical-rl;
-            transform: rotate(180deg);
-            text-align: center;
-            align-items: center;
-        }
-
-        canvas {
-            margin: 6px 6px 6px 0;
-            border: 1px dashed #d16ba5;
-            image-rendering: pixelated;
-        }
-
-        #log {
-            margin-top: 15px;
-            padding: 10px;
-            width: 100%;
-            max-width: 500px;
-            background: #fff0fa;
-            border: 1px solid #f48fb1;
-            border-radius: 8px;
-            font-size: 0.9em;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        video {
-            display: none;
-        }
-
-        .linkspan {
-            color: #d16ba5;
-            cursor: pointer;
-            font-weight: bold;
-            text-decoration: underline;
-        }
-    </style>
+    <link rel="stylesheet" href="./css/styles.css">
 </head>
 
 <body>
     <h1>Serial Video Sender</h1>
-    <p id="info">Make sure to upload the <span class="linkspan" onclick="window.location.href='https://github.com/umittadelen/arduinoVideoRenderer/blob/main/receive/receive.ino'">arduino code</span> first</p>
+    <p id="info">Make sure to upload the <span class="linkspan"
+            onclick="window.location.href='https://github.com/umittadelen/arduinoVideoRenderer/blob/main/receive/receive.ino'">arduino
+            code</span> first (preview mode also available)</p>
     <input type="file" id="videoInput" accept="video/*">
+
+    <label class="size-label custom-select-label"><span id="ditheringSpan">Dithering:</span>
+        <div class="custom-select">
+            <select id="ditherType">
+                <option value="floyd">Floyd-Steinberg</option>
+                <option value="sierraLite">Sierra Lite</option>
+                <option value="atkinson">Atkinson</option>
+                <option value="bayer">Bayer</option>
+                <option value="jarvisJudiceNinke">Jarvis Judice Ninke</option>
+                <option value="threshold10">Threshold 10%</option>
+                <option value="threshold25">Threshold 25%</option>
+                <option value="threshold33">Threshold 33%</option>
+                <option value="threshold50">Threshold 50%</option>
+                <option value="threshold75">Threshold 75%</option>
+                <option value="random">random</option>
+                <option value="line">line</option>
+                <option value="none">none</option>
+            </select>
+
+            <div class="custom-select-trigger" tabindex="0">
+                <canvas class="preview-canvas" width="42" height="36"></canvas>
+                <span class="selected-label"></span>
+            </div>
+
+            <div class="custom-options"></div>
+        </div>
+        <!-- <canvas id="dither-canvas" class="dither-canvas" width="42" height="36"></canvas> -->
+    </label>
 
     <div class="horizontal-flex">
         <label class="size-label"><span>Baud Rate:</span><input type="number" id="BaudRate" value="115200"
                 placeholder="BAUD_RATE in .ino"></label>
+        <label class="size-label"><span>Width:</span><input type="number" id="screenWidth" value="128" min="8"
+                max="256"></label>
+        <label class="size-label"><span>Height:</span><input type="number" id="screenHeight" value="64" min="8"
+                max="128"></label>
+        <label class="size-label"><span>FPS:</span><input type="number" id="framesPerSecond" value="60" min="1"></label>
+    </div>
+
+    <div class="horizontal-flex">
         <button id="connectSerial">Connect Serial</button>
         <button id="start">Start Streaming</button>
         <button id="screenCapture">Capture Screen</button>
-    </div>
-
-    <label class="size-label"><span>Dithering:</span>
-        <select id="ditherType">
-            <option value="floyd">Floyd-Steinberg</option>
-            <option value="threshold10">Threshold 10%</option>
-            <option value="threshold25">Threshold 25%</option>
-            <option value="threshold33">Threshold 33%</option>
-            <option value="threshold50">Threshold 50%</option>
-            <option value="threshold75">Threshold 75%</option>
-            <option value="bayer">Bayer</option>
-            <option value="atkinson">Atkinson</option>
-            <option value="random">random</option>
-            <option value="line">line</option>
-            <option value="none">none</option>
-        </select>
-    </label>
-
-    <div class="horizontal-flex">
-        <label class="size-label"><span>Width:</span><input type="number" id="screenWidth" value="128" min="8" max="256"></label>
-        <label class="size-label"><span>Height:</span><input type="number" id="screenHeight" value="64" min="8" max="128"></label>
-        <label class="size-label"><span>FPS:</span><input type="number" id="framesPerSecond" value="60" min="1"></label>
+        <button id="stop">Stop</button>
+        <button id="restart">Restart</button>
+        <div class="checkbox-container">
+            <div id="textSwitch" class="text-switch">
+                <span class="switch-option on active">ON</span>|<span class="switch-option off">OFF</span>
+                <span class="toggle-label">Loop</span>
+            </div>
+        </div>
     </div>
 
     <video id="video" width="320" controls style="display:none"></video>
 
     <div class="horizontal-flex">
-        <label class="size-label canvas-label"><span>Original:</span><canvas id="canvas" width="128" height="64"></canvas></label>
-        <label class="size-label canvas-label"><span>Preview:</span><canvas id="preview-canvas" width="128" height="64"></canvas></label>
+        <label class="size-label canvas-label"><span>Original:</span><canvas id="canvas" width="128"
+                height="64"></canvas></label>
+        <label class="size-label canvas-label"><span>Preview:</span><canvas id="preview-canvas" width="128"
+                height="64"></canvas></label>
     </div>
 
     <pre id="log"></pre>
     <script type="module" src="./js/dither.js"></script>
+    <script type="module" src="./js/ditheringSelect.js"></script>
     <script type="module" src="./js/main.js"></script>
 </body>
 

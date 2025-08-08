@@ -1,5 +1,7 @@
 import {applyDithering} from './dither.js';
 
+//TODO --------------------|       Constants & Globals      |--------------------
+
 const HEADER = new Uint8Array([0xAA, 0x55, 0xAA, 0x55]);
 let port, writer;
 let video = document.getElementById('video');
@@ -10,6 +12,8 @@ let previewctx = previewCanvas.getContext('2d');
 let log = document.getElementById('log');
 let currentStreamId = null;
 let streamSession = 0;
+
+//TODO --------------------| Video & Serial Input Handlers  |--------------------
 
 document.getElementById('videoInput').onchange = e => {
 
@@ -34,6 +38,7 @@ document.getElementById('connectSerial').onclick = async () => {
         log.textContent += "Serial error: " + e + "\n";
     }
 };
+
 document.getElementById('screenCapture').onclick = async () => {
     try {
         const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -47,13 +52,75 @@ document.getElementById('screenCapture').onclick = async () => {
     }
 };
 
-// On page load, restore saved baud rate:
+//TODO --------------------|    Playback Control Buttons    |--------------------
+
+document.getElementById('stop').onclick = () => {
+    streamSession++; // stop any ongoing stream send loop
+    if (currentStreamId !== null) {
+        clearTimeout(currentStreamId);
+        currentStreamId = null;
+    }
+    video.pause();
+    log.textContent += "Stream stopped.\n";
+};
+
+document.getElementById('restart').onclick = async () => {
+    // Stop current streaming cleanly
+    streamSession++; 
+    if (currentStreamId !== null) {
+        clearTimeout(currentStreamId);
+        currentStreamId = null;
+    }
+    video.pause();
+
+    // Wait a tiny bit to ensure waitForAck() calls resolve & readers released
+    await new Promise(r => setTimeout(r, 100));
+
+    document.getElementById('start').click();
+    log.textContent += "Stream restarted.\n";
+};
+
+//TODO --------------------|       Loop Toggle Handler      |--------------------
+
+const checkboxContainer = document.querySelector('.checkbox-container');
+const textSwitch = document.getElementById('textSwitch');
+const onSpan = textSwitch.querySelector('.switch-option.on');
+const offSpan = textSwitch.querySelector('.switch-option.off');
+
+let isLooping = true;
+
+function updateSwitchUI() {
+  if (isLooping) {
+    onSpan.classList.add('active');
+    offSpan.classList.remove('active');
+  } else {
+    offSpan.classList.add('active');
+    onSpan.classList.remove('active');
+  }
+  
+  video.loop = isLooping;
+  log.textContent = `Looping ${isLooping ? 'enabled' : 'disabled'}.\n`;
+}
+
+// Attach click to entire container, toggle state on click
+checkboxContainer.onclick = () => {
+  isLooping = !isLooping;
+  updateSwitchUI();
+};
+
+// Initialize UI on load
+updateSwitchUI();
+
+//TODO --------------------| Restore Saved Settings on Load |--------------------
+
 window.addEventListener('load', () => {
     const savedBaudRate = localStorage.getItem('lastBaudRate');
     if (savedBaudRate) {
         document.getElementById('BaudRate').value = savedBaudRate;
     }
 });
+
+//TODO --------------------|       Serial ACK Waiter        |--------------------
 
 async function waitForAck() {
     const reader = port.readable.getReader();
@@ -67,6 +134,8 @@ async function waitForAck() {
         reader.releaseLock();  // release so future reads won't crash
     }
 }
+
+//TODO --------------------|  Stream Start & Frame Sending  |--------------------
 
 document.getElementById('start').onclick = async () => {
     if (!video.src && !video.srcObject) return alert("Load a video or capture screen first!");
@@ -159,16 +228,22 @@ document.getElementById('start').onclick = async () => {
             log.textContent = `\nNo serial connected, running preview only!`;
         }
 
-        if (!video.paused && !video.ended && thisSession === streamSession) {
+        if (!video.paused && (isLooping || !video.ended) && thisSession === streamSession) {
             currentStreamId = setTimeout(() => {
                 lastFrameTime = performance.now();
                 sendFrame();
             }, nextDelay);
+        } else {
+            if (video.ended && !isLooping) {
+                log.textContent += "Video ended, stopping stream.\n";
+            }
         }
     };
 
     sendFrame();
 };
+
+//TODO --------------------|     Cleanup on Page Unload     |--------------------
 
 window.addEventListener('beforeunload', (e) => {
     try {
@@ -191,6 +266,7 @@ window.addEventListener('beforeunload', (e) => {
     }
 });
 
+//TODO --------------------|       Frame Data Packing       |--------------------
 
 function frameToSSD1309Bytes(imageData, width, height) {
     const pages = height >> 3;

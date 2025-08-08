@@ -121,6 +121,91 @@ function lineDither(imageData, direction = "vertical") {
     return imageData;
 }
 
+function sierraLiteDither(imageData, width, height) {
+    let data = imageData.data;
+    let gray = [];
+
+    // Convert to grayscale
+    for (let i = 0; i < data.length; i += 4) {
+        gray.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+    }
+
+    // Sierra Lite kernel
+    // Current pixel gets thresholded, error is spread:
+    //    X   2
+    // 1  1
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            let idx = y * width + x;
+            let oldPixel = gray[idx];
+            let newPixel = oldPixel > 127 ? 255 : 0;
+            let err = (oldPixel - newPixel) / 4;
+            gray[idx] = newPixel;
+
+            if (x + 1 < width) gray[idx + 1] += err * 2;     // right
+            if (y + 1 < height) {
+                if (x > 0) gray[idx + width - 1] += err;      // bottom-left
+                gray[idx + width] += err;                     // bottom
+            }
+        }
+    }
+
+    // Apply to image data
+    for (let i = 0; i < gray.length; i++) {
+        let v = gray[i] > 127 ? 255 : 0;
+        data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v;
+    }
+
+    return imageData;
+}
+
+function jarvisJudiceNinkeDither(imageData, width, height) {
+    let data = imageData.data;
+    let gray = [];
+
+    // Convert to grayscale
+    for (let i = 0; i < data.length; i += 4) {
+        gray.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+    }
+
+    // JJN error diffusion matrix:
+    // Row 0:     X   7   5
+    // Row 1:  3   5   7   5   3
+    // Row 2:  1   3   5   3   1
+    const spread = [
+        [1, 0, 7 / 48],  [2, 0, 5 / 48],
+        [-2, 1, 3 / 48], [-1, 1, 5 / 48], [0, 1, 7 / 48], [1, 1, 5 / 48], [2, 1, 3 / 48],
+        [-2, 2, 1 / 48], [-1, 2, 3 / 48], [0, 2, 5 / 48], [1, 2, 3 / 48], [2, 2, 1 / 48]
+    ];
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            let idx = y * width + x;
+            let oldPixel = gray[idx];
+            let newPixel = oldPixel > 127 ? 255 : 0;
+            let err = oldPixel - newPixel;
+            gray[idx] = newPixel;
+
+            // Spread the error
+            for (let [dx, dy, factor] of spread) {
+                let nx = x + dx;
+                let ny = y + dy;
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    gray[ny * width + nx] += err * factor;
+                }
+            }
+        }
+    }
+
+    // Apply to image data
+    for (let i = 0; i < gray.length; i++) {
+        let v = gray[i] > 127 ? 255 : 0;
+        data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v;
+    }
+
+    return imageData;
+}
+
 function noDither(imageData) {
     return imageData;
 }
@@ -138,6 +223,8 @@ function applyDithering(imageData, type, options = {}) {
     if (type === "atkinson") return atkinsonDither(imageData, width, height);
     if (type === "random") return randomDither(imageData, width, height);
     if (type === "line") return lineDither(imageData, width, height);
+    if (type === "sierraLite") return sierraLiteDither(imageData, width, height);
+    if (type === "jarvisJudiceNinke") return jarvisJudiceNinkeDither(imageData, width, height);
     if (type === "none") return noDither(imageData);
     return floydSteinbergDither(imageData);
 }
