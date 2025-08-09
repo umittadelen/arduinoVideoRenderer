@@ -39,21 +39,53 @@ function floydSteinbergDither(imageData, width, height) {
     return imageData;
 }
 
-function bayerDither(imageData, width, height) {
-    // 4x4 Bayer matrix
-    const bayer = [
-        [15, 135, 45, 165],
-        [195, 75, 225, 105],
-        [60, 180, 30, 150],
-        [240, 120, 210, 90]
-    ];
-    let data = imageData.data;
+const bayer2x2 = [
+  [0, 2],
+  [3, 1]
+];
+
+const bayer3x3 = [
+  [6, 8, 4],
+  [1, 0, 3],
+  [5, 2, 7]
+];
+
+const bayer4x4 = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5]
+];
+
+const bayer8x8 = [
+  [0, 32, 8, 40, 2, 34, 10, 42],
+  [48, 16, 56, 24, 50, 18, 58, 26],
+  [12, 44, 4, 36, 14, 46, 6, 38],
+  [60, 28, 14, 46, 62, 30, 15, 47],
+  [3, 35, 11, 43, 1, 33, 9, 41],
+  [51, 19, 59, 27, 49, 17, 57, 25],
+  [15, 47, 7, 39, 13, 45, 5, 37],
+  [63, 31, 55, 23, 61, 29, 53, 21]
+];
+
+function orderedDither(imageData, matrix) {
+    const width = imageData.width;
+    const height = imageData.height;
+    const data = imageData.data;
+    const size = matrix.length;
+    const maxVal = size * size;
+
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            let idx = (y * width + x) * 4;
-            let gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-            let threshold = bayer[y % 4][x % 4];
-            let v = (gray > threshold ? 255 : 0);
+            const idx = (y * width + x) * 4;
+            const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+
+            // Normalize pixel value and matrix threshold
+            const pixelVal = gray / 255;
+            const threshold = matrix[y % size][x % size] / maxVal;
+
+            const v = pixelVal > threshold ? 255 : 0;
+
             data[idx] = data[idx + 1] = data[idx + 2] = v;
         }
     }
@@ -248,6 +280,55 @@ function huePatternDither(imageData) {
     return imageData;
 }
 
+function stuckiDither(imageData, width, height) {
+    let data = imageData.data;
+    let gray = [];
+
+    // Convert to grayscale
+    for (let i = 0; i < data.length; i += 4) {
+        gray.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+    }
+
+    // Stucki error diffusion matrix:
+    //       X    8    4
+    //  2    4    8    4    2
+    //  1    2    4    2    1
+    // Sum of weights = 42
+
+    const spread = [
+        [1, 0, 8 / 42],  [2, 0, 4 / 42],
+        [-2, 1, 2 / 42], [-1, 1, 4 / 42], [0, 1, 8 / 42], [1, 1, 4 / 42], [2, 1, 2 / 42],
+        [-2, 2, 1 / 42], [-1, 2, 2 / 42], [0, 2, 4 / 42], [1, 2, 2 / 42], [2, 2, 1 / 42]
+    ];
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            let idx = y * width + x;
+            let oldPixel = gray[idx];
+            let newPixel = oldPixel > 127 ? 255 : 0;
+            let err = oldPixel - newPixel;
+            gray[idx] = newPixel;
+
+            // Spread error according to Stucki kernel
+            for (let [dx, dy, factor] of spread) {
+                let nx = x + dx;
+                let ny = y + dy;
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    gray[ny * width + nx] += err * factor;
+                }
+            }
+        }
+    }
+
+    // Write back monochrome pixels
+    for (let i = 0; i < gray.length; i++) {
+        let v = gray[i] > 127 ? 255 : 0;
+        data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v;
+    }
+
+    return imageData;
+}
+
 function noDither(imageData) {
     return imageData;
 }
@@ -261,13 +342,17 @@ function applyDithering(imageData, type, options = {}) {
     if (type === "threshold50") return thresholdDither(imageData, 50);
     if (type === "threshold75") return thresholdDither(imageData, 75);
     if (type === "floyd") return floydSteinbergDither(imageData, width, height);
-    if (type === "bayer") return bayerDither(imageData, width, height);
+    if (type === "bayer2x2") return orderedDither(imageData, bayer2x2);
+    if (type === "bayer3x3") return orderedDither(imageData, bayer3x3);
+    if (type === "bayer4x4") return orderedDither(imageData, bayer4x4);
+    if (type === "bayer8x8") return orderedDither(imageData, bayer8x8);
     if (type === "atkinson") return atkinsonDither(imageData, width, height);
     if (type === "random") return randomDither(imageData, width, height);
     if (type === "line") return lineDither(imageData, width, height);
     if (type === "sierraLite") return sierraLiteDither(imageData, width, height);
     if (type === "jarvisJudiceNinke") return jarvisJudiceNinkeDither(imageData, width, height);
     if (type === "huePattern") return huePatternDither(imageData);
+    if (type === "stucki") return stuckiDither(imageData, width, height);
     if (type === "none") return noDither(imageData);
     return floydSteinbergDither(imageData);
 }
