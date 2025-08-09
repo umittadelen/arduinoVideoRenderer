@@ -12,7 +12,7 @@ function drawDitherPreview(canvas, ditherType) {
   const width = canvas.width;
   const height = canvas.height;
 
-  // Create base gradient ImageData
+  // Create full image data (initially gradient)
   let imageData = ctx.createImageData(width, height);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -25,43 +25,33 @@ function drawDitherPreview(canvas, ditherType) {
     }
   }
 
-  // Apply dithering to base gradient
-  let dithered = applyDithering(imageData, ditherType);
-
-  // Convert back to normal pixels for editing
-  let modified = ctx.createImageData(width, height);
-  modified.data.set(dithered.data);
-
   // Circle parameters
-  const circleRadius = height * 0.25; // 50% of height diameter
+  const circleRadius = height * 0.25; // 50% diameter of height
   const cx = width / 2;
   const cy = height / 2;
   const rSq = circleRadius * circleRadius;
 
-  // Draw inverted gradient inside the circle
+  // Modify the circle area
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const dx = x - cx;
       const dy = y - cy;
       if (dx * dx + dy * dy <= rSq) {
-        // Invert gradient value (based on x position)
+        // Inverted gradient
         let v = 255 - Math.round((x / (width - 1)) * 255);
         let idx = (y * width + x) * 4;
-        modified.data[idx] = v;
-        modified.data[idx + 1] = v;
-        modified.data[idx + 2] = v;
-        modified.data[idx + 3] = 255;
+        imageData.data[idx] = v;
+        imageData.data[idx + 1] = v;
+        imageData.data[idx + 2] = v;
+        imageData.data[idx + 3] = 255;
       }
     }
   }
 
-  // Apply dithering again for the circle (optional)
-  modified = applyDithering(modified, ditherType);
+  let dithered = applyDithering(imageData, ditherType);
 
-  // Draw final image
-  ctx.putImageData(modified, 0, 0);
+  ctx.putImageData(dithered, 0, 0);
 }
-
 
 function buildOptions() {
   optionsContainer.innerHTML = '';

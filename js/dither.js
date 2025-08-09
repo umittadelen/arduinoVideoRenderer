@@ -206,6 +206,48 @@ function jarvisJudiceNinkeDither(imageData, width, height) {
     return imageData;
 }
 
+function huePatternDither(imageData) {
+    let data = imageData.data;
+    const width = imageData.width;
+    const height = imageData.height;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            let idx = (y * width + x) * 4;
+            let r = data[idx], g = data[idx + 1], b = data[idx + 2];
+
+            // Convert RGB to HSL to get hue
+            let max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h = 0;
+            if (max !== min) {
+                if (max === r) h = (60 * ((g - b) / (max - min)) + 360) % 360;
+                else if (max === g) h = (60 * ((b - r) / (max - min)) + 120) % 360;
+                else h = (60 * ((r - g) / (max - min)) + 240) % 360;
+            }
+
+            let luma = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            // Choose a pattern based on hue segment
+            let patternIndex = Math.floor(h / 60) % 6;
+            let patternPixel = false;
+            switch (patternIndex) {
+                case 0: patternPixel = ((x + y) % 2 === 0); break; // Red-ish
+                case 1: patternPixel = (x % 2 === 0); break;        // Yellow-ish
+                case 2: patternPixel = (y % 2 === 0); break;        // Green-ish
+                case 3: patternPixel = ((x + y) % 3 === 0); break;  // Cyan-ish
+                case 4: patternPixel = ((x % 3) === 0); break;      // Blue-ish
+                case 5: patternPixel = ((y % 3) === 0); break;      // Magenta-ish
+            }
+
+            let threshold = patternPixel ? 100 : 160;
+            let v = luma > threshold ? 255 : 0;
+
+            data[idx] = data[idx + 1] = data[idx + 2] = v;
+        }
+    }
+    return imageData;
+}
+
 function noDither(imageData) {
     return imageData;
 }
@@ -225,6 +267,7 @@ function applyDithering(imageData, type, options = {}) {
     if (type === "line") return lineDither(imageData, width, height);
     if (type === "sierraLite") return sierraLiteDither(imageData, width, height);
     if (type === "jarvisJudiceNinke") return jarvisJudiceNinkeDither(imageData, width, height);
+    if (type === "huePattern") return huePatternDither(imageData);
     if (type === "none") return noDither(imageData);
     return floydSteinbergDither(imageData);
 }

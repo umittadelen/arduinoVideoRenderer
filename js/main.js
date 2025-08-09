@@ -203,7 +203,7 @@ document.getElementById('start').onclick = async () => {
         imageData = applyDithering(imageData, ditherType);
         previewctx.putImageData(imageData, 0, 0);
 
-        let bytes = frameToSSD1309Bytes(imageData, width, height);
+        let bytes = frameToSSD1306Bytes(imageData, width, height);
         if (writer && port && port.readable && port.writable) {
             try {
                 let out = new Uint8Array(HEADER.length + bytes.length);
@@ -268,7 +268,7 @@ window.addEventListener('beforeunload', (e) => {
 
 //TODO --------------------|       Frame Data Packing       |--------------------
 
-function frameToSSD1309Bytes(imageData, width, height) {
+function frameToSSD1306Bytes(imageData, width, height) {
     const pages = height >> 3;
     const packed = new Uint8Array(width * pages);
     let i = 0;
