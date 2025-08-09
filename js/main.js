@@ -29,6 +29,10 @@ document.getElementById('connectSerial').onclick = async () => {
         const baudRate = parseInt(document.getElementById('BaudRate').value, 10);
         // Save baud rate to localStorage
         localStorage.setItem('lastBaudRate', baudRate);
+        localStorage.setItem('lastWidth', document.getElementById('screenWidth').value);
+        localStorage.setItem('lastHeight', document.getElementById('screenHeight').value);
+        localStorage.setItem('lastDither', document.getElementById('ditherType').value);
+        localStorage.setItem('lastFps', document.getElementById('framesPerSecond').value);
 
         port = await navigator.serial.requestPort();
         await port.open({ baudRate: baudRate });
@@ -87,7 +91,7 @@ const textSwitch = document.getElementById('textSwitch');
 const onSpan = textSwitch.querySelector('.switch-option.on');
 const offSpan = textSwitch.querySelector('.switch-option.off');
 
-let isLooping = true;
+let isLooping = false;
 
 function updateSwitchUI() {
   if (isLooping) {
@@ -114,10 +118,20 @@ updateSwitchUI();
 //TODO --------------------| Restore Saved Settings on Load |--------------------
 
 window.addEventListener('load', () => {
-    const savedBaudRate = localStorage.getItem('lastBaudRate');
-    if (savedBaudRate) {
-        document.getElementById('BaudRate').value = savedBaudRate;
+  const fields = {
+    lastBaudRate: 'BaudRate',
+    lastWidth: 'screenWidth',
+    lastHeight: 'screenHeight',
+    lastDither: 'ditherType',
+    lastFps: 'framesPerSecond'
+  };
+
+  for (const [storageKey, elementId] of Object.entries(fields)) {
+    const saved = localStorage.getItem(storageKey);
+    if (saved !== null) {
+      document.getElementById(elementId).value = saved;
     }
+  }
 });
 
 //TODO --------------------|       Serial ACK Waiter        |--------------------
