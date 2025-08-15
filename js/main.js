@@ -1,4 +1,4 @@
-import {applyDithering} from './dither.js';
+import { applyDithering } from './dither.js';
 
 //TODO --------------------|       Constants & Globals      |--------------------
 
@@ -37,9 +37,9 @@ document.getElementById('connectSerial').onclick = async () => {
         port = await navigator.serial.requestPort();
         await port.open({ baudRate: baudRate });
         writer = port.writable.getWriter();
-        log.textContent += "Serial connected\n";
+        logMessage(`Serial connected at ${baudRate} baud`);
     } catch (e) {
-        log.textContent += "Serial error: " + e + "\n";
+        logMessage(`Serial error: ${e}`);
     }
 };
 
@@ -50,38 +50,28 @@ document.getElementById('screenCapture').onclick = async () => {
         });
         video.srcObject = stream;
         video.play();
-        log.textContent += "Live screen capture started\n";
+        logMessage(`Screen capture started`);
     } catch (err) {
-        log.textContent += "Screen capture failed: " + err + "\n";
+        logMessage(`Screen capture failed: ${err}`);
     }
 };
 
 //TODO --------------------|    Playback Control Buttons    |--------------------
 
 document.getElementById('stop').onclick = () => {
-    streamSession++; // stop any ongoing stream send loop
-    if (currentStreamId !== null) {
-        clearTimeout(currentStreamId);
-        currentStreamId = null;
-    }
-    video.pause();
-    log.textContent += "Stream stopped.\n";
+    stopCurrentStream();
+    logMessage(`Stream stopped`);
 };
 
 document.getElementById('restart').onclick = async () => {
     // Stop current streaming cleanly
-    streamSession++; 
-    if (currentStreamId !== null) {
-        clearTimeout(currentStreamId);
-        currentStreamId = null;
-    }
-    video.pause();
+    stopCurrentStream();
 
     // Wait a tiny bit to ensure waitForAck() calls resolve & readers released
     await new Promise(r => setTimeout(r, 100));
 
     document.getElementById('start').click();
-    log.textContent += "Stream restarted.\n";
+    logMessage(`Stream restarted`);
 };
 
 //TODO --------------------|       Loop Toggle Handler      |--------------------
@@ -94,44 +84,41 @@ const offSpan = textSwitch.querySelector('.switch-option.off');
 let isLooping = false;
 
 function updateSwitchUI() {
-  if (isLooping) {
-    onSpan.classList.add('active');
-    offSpan.classList.remove('active');
-  } else {
-    offSpan.classList.add('active');
-    onSpan.classList.remove('active');
-  }
-  
-  video.loop = isLooping;
-  log.textContent = `Looping ${isLooping ? 'enabled' : 'disabled'}.\n`;
+    if (isLooping) {
+        onSpan.classList.add('active');
+        offSpan.classList.remove('active');
+    } else {
+        offSpan.classList.add('active');
+        onSpan.classList.remove('active');
+    }
+
+    video.loop = isLooping;
+    logMessage(`Looping ${isLooping ? 'enabled' : 'disabled'}`);
 }
 
 // Attach click to entire container, toggle state on click
 checkboxContainer.onclick = () => {
-  isLooping = !isLooping;
-  updateSwitchUI();
+    isLooping = !isLooping;
+    updateSwitchUI();
 };
-
-// Initialize UI on load
-updateSwitchUI();
 
 //TODO --------------------| Restore Saved Settings on Load |--------------------
 
 window.addEventListener('load', () => {
-  const fields = {
-    lastBaudRate: 'BaudRate',
-    lastWidth: 'screenWidth',
-    lastHeight: 'screenHeight',
-    lastDither: 'ditherType',
-    lastFps: 'framesPerSecond'
-  };
+    const fields = {
+        lastBaudRate: 'BaudRate',
+        lastWidth: 'screenWidth',
+        lastHeight: 'screenHeight',
+        lastDither: 'ditherType',
+        lastFps: 'framesPerSecond'
+    };
 
-  for (const [storageKey, elementId] of Object.entries(fields)) {
-    const saved = localStorage.getItem(storageKey);
-    if (saved !== null) {
-      document.getElementById(elementId).value = saved;
+    for (const [storageKey, elementId] of Object.entries(fields)) {
+        const saved = localStorage.getItem(storageKey);
+        if (saved !== null) {
+            document.getElementById(elementId).value = saved;
+        }
     }
-  }
 });
 
 //TODO --------------------|       Serial ACK Waiter        |--------------------
@@ -152,20 +139,15 @@ async function waitForAck() {
 //TODO --------------------|  Stream Start & Frame Sending  |--------------------
 
 document.getElementById('start').onclick = async () => {
-    if (!video.src && !video.srcObject) return alert("Load a video or capture screen first!");
+    if (!video.src && !video.srcObject) return alert(`Load a video or capture screen first!`);
 
 
     if (!writer) {
-        log.textContent += "No serial connected, running preview only!\n";
+        logMessage(`No serial connected, running preview only!`)
     }
 
     // Cancel old stream
-    streamSession++;
-    if (currentStreamId !== null) {
-        clearTimeout(currentStreamId);
-        currentStreamId = null;
-        video.pause();
-    }
+    stopCurrentStream();
 
     let width = parseInt(document.getElementById('screenWidth').value, 10);
     let height = parseInt(document.getElementById('screenHeight').value, 10);
@@ -178,7 +160,7 @@ document.getElementById('start').onclick = async () => {
     video.currentTime = 0;
     video.play();
 
-    log.textContent = `Starting stream...\n`;
+    logMessage(`Streaming video at ${width}x${height} resolution`);
 
     let frameCount = 0;
     let lastFrameTime = performance.now();
@@ -227,19 +209,12 @@ document.getElementById('start').onclick = async () => {
                 await waitForAck(); // wait for Arduino to finish processing frame
                 frameCount++;
             } catch (err) {
-                log.textContent += `\nSerial disconnected or error: ${err}`;
-                streamSession++;
-                if (currentStreamId !== null) {
-                    clearTimeout(currentStreamId);
-                    currentStreamId = null;
-                }
-                video.pause();
+                logMessage(`Serial disconnected or error: ${err}`);
+                stopCurrentStream();
                 writer = null;
                 port = null;
                 return;
             }
-        } else {
-            log.textContent = `\nNo serial connected, running preview only!`;
         }
 
         if (!video.paused && (isLooping || !video.ended) && thisSession === streamSession) {
@@ -249,7 +224,7 @@ document.getElementById('start').onclick = async () => {
             }, nextDelay);
         } else {
             if (video.ended && !isLooping) {
-                log.textContent += "Video ended, stopping stream.\n";
+                logMessage(`Video ended, stopping stream`);
             }
         }
     };
@@ -257,26 +232,30 @@ document.getElementById('start').onclick = async () => {
     sendFrame();
 };
 
+function stopCurrentStream() {
+    streamSession++;
+    if (currentStreamId !== null) {
+        clearTimeout(currentStreamId);
+        currentStreamId = null;
+    }
+    video.pause();
+}
+
 //TODO --------------------|     Cleanup on Page Unload     |--------------------
 
 window.addEventListener('beforeunload', (e) => {
     try {
-        streamSession++;
-        if (currentStreamId !== null) {
-            clearTimeout(currentStreamId);
-            currentStreamId = null;
-        }
-        video.pause();
+        stopCurrentStream();
 
         if (writer) {
             writer.releaseLock();
         }
         if (port && port.readable && port.writable) {
             port.close();
-            log.textContent += "Serial closed on refresh\n";
+            logMessage(`Serial closed on refresh`);
         }
     } catch (err) {
-        console.warn("Cleanup error:", err);
+        console.warn(`Cleanup error:`, err);
     }
 });
 
@@ -287,16 +266,35 @@ function frameToSSD1306Bytes(imageData, width, height) {
     const packed = new Uint8Array(width * pages);
     let i = 0;
     for (let page = 0; page < pages; page++) {
+        let yOffset = page << 3;
         for (let x = 0; x < width; x++) {
             let byte = 0;
             for (let bit = 0; bit < 8; bit++) {
-                let y = (page << 3) + bit;
-                let idx = (y * width + x) * 4;
-                let pixel = imageData.data[idx];
-                byte |= ((pixel > 127 ? 1 : 0) << bit);
+                let idx = ((yOffset + bit) * width + x) << 2;
+                byte |= ((imageData.data[idx] > 127 ? 1 : 0) << bit);
             }
             packed[i++] = byte;
         }
     }
     return packed;
 }
+
+//TODO --------------------|       Log Box Functions        |--------------------
+
+function logMessage(msg) {
+    // Prepend the new message
+    log.textContent = `${msg}\n${log.textContent}`;
+
+    // Keep only the first 40 lines
+    const lines = log.textContent.split('\n').slice(0, 40);
+    log.textContent = lines.join('\n');
+}
+
+//TODO --------------------|      Custom File Select        |--------------------
+
+const input = document.getElementById('videoInput');
+const fileName = document.getElementById('fileName');
+
+input.addEventListener('change', () => {
+    fileName.textContent = input.files.length ? input.files[0].name : 'No file chosen';
+});

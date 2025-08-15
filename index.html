@@ -5,16 +5,25 @@
     <meta charset="UTF-8">
     <title>Serial Video Sender</title>
     <link rel="stylesheet" href="./css/styles.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap" rel="stylesheet">
 </head>
 
 <body>
     <h1>Serial Video Sender</h1>
     <p id="info">Make sure to upload the <span class="linkspan"
             onclick="window.location.href='https://github.com/umittadelen/arduinoVideoRenderer/blob/main/receive/receive.ino'">arduino
-            code</span> first (preview mode also available)</p>
-    <input type="file" id="videoInput" accept="video/*">
+            code</span> first.<br>(preview mode also available)</p>
+    
+    <div class="video-input-container">
+        <label for="videoInput" class="file-btn">Choose Video</label>
+        <input type="file" id="videoInput" accept="video/*">
+        <span id="fileName">No file chosen</span>
+    </div>
 
-    <label class="size-label custom-select-label"><span id="ditheringSpan">Dithering:</span>
+    <label class="custom-select-label"><span id="ditheringSpan">Dithering:</span>
         <div class="custom-select">
             <select id="ditherType">
                 <option value="floyd">Floyd-Steinberg</option>
@@ -44,7 +53,6 @@
 
             <div class="custom-options"></div>
         </div>
-        <!-- <canvas id="dither-canvas" class="dither-canvas" width="42" height="36"></canvas> -->
     </label>
 
     <div class="horizontal-flex">

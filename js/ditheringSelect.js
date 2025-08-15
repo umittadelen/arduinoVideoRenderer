@@ -145,6 +145,18 @@ trigger.addEventListener('click', () => {
   }
 });
 
+// Close dropdown if clicked outside
+document.addEventListener('click', (e) => {
+  if (!container.contains(e.target)) {
+    optionsContainer.style.display = 'none';
+    animating = false;
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+    }
+  }
+});
+
 // Initialize
 buildOptions();
 updateSelected();
