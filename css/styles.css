@@ -294,3 +294,12 @@ canvas.preview-canvas {
     color: #db0964;
     border: 2px solid #db0964;
 }
+
+#mikuCanvas {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    margin: 0;
+    image-rendering: pixelated;
+    border:none;
+}
