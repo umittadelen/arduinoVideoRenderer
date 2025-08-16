@@ -429,4 +429,5 @@ canvas.preview-canvas {
     margin: 0;
     image-rendering: pixelated;
     border: none;
+    pointer-events: none;
 }
