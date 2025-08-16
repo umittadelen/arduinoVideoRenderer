@@ -139,8 +139,12 @@ async function waitForAck() {
 //TODO --------------------|  Stream Start & Frame Sending  |--------------------
 
 document.getElementById('start').onclick = async () => {
-    if (!video.src && !video.srcObject) return alert(`Load a video or capture screen first!`);
+    const hasSrc = video.src && video.src !== window.location.href;
+    const hasStream = video.srcObject;
 
+    if (!hasSrc && !hasStream) {
+        return alert(`Load a video file, paste a URL, or capture screen first!`);
+    }
 
     if (!writer) {
         logMessage(`No serial connected, running preview only!`)
@@ -296,5 +300,21 @@ const input = document.getElementById('videoInput');
 const fileName = document.getElementById('fileName');
 
 input.addEventListener('change', () => {
-    fileName.textContent = input.files.length ? input.files[0].name : 'No file chosen';
+    if (input.files.length) {
+        const file = input.files[0];
+        fileName.value = file.name; // display filename
+        video.src = URL.createObjectURL(file);
+        video.load();
+    } else {
+        fileName.value = ``;
+    }
+});
+
+fileName.addEventListener('change', () => {
+    const url = fileName.value.trim();
+    if (/^https?:\/\//i.test(url)) {
+        video.crossOrigin = "anonymous";
+        video.src = url;
+        video.load();
+    }
 });

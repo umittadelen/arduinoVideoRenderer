@@ -93,6 +93,7 @@ select,
 button,
 label input {
     font: inherit;
+    height: 34px;
     padding: 8px 12px;
     border: var(--border);
     color: var(--dark-text-color);
@@ -116,10 +117,13 @@ input[type="file"] {
     align-items: center;
     border: var(--border);
     border-radius: 8px;
-
+    max-height: 36px;
 }
 
 .file-btn {
+    max-height: 36px;
+    overflow: hidden;
+    white-space: nowrap;
     display: inline-block;
     padding: 8px 12px;
     font: inherit;
@@ -136,15 +140,23 @@ input[type="file"] {
 
 /* Optional: show selected file name */
 #fileName {
-    margin-left: 10px;
-    margin-right: 10px;
-    font-style: italic;
+    height: 34px;
+    border: none;
+    border-radius: 0 8px 8px 0;
+    background-color: var(--input-background);
+    color: var(--text-color);
+    font: inherit;
+    margin: 0;
     max-width: 200px;
     min-width: 200px;
     overflow: hidden;
     text-overflow: clip;
     white-space: nowrap;
     text-align: center;
+}
+
+#fileName::placeholder {
+    font-style: italic;
 }
 
 /*input hover prevent browser outline*/
@@ -167,6 +179,7 @@ button:hover {
 }
 
 .size-label {
+    height: 36px;
     display: flex;
     align-items: center;
     gap: 0;
@@ -178,6 +191,10 @@ button:hover {
     flex: 1 1 0;
     min-width: 0;
     max-width: 50%;
+}
+
+.size-label.canvas-label {
+    height: auto;
 }
 
 .size-label span {
@@ -192,7 +209,8 @@ button:hover {
     border-left: none;
     border-radius: 0 8px 8px 0;
     box-shadow: none;
-    padding: 8px 12px;
+    padding: 0 12px;
+    height: 34px;
     width: 100%;
 }
 
@@ -219,6 +237,7 @@ canvas {
 
 #log {
     margin-top: 15px;
+    min-height: 100px;
     padding: 10px;
     width: 100%;
     max-width: 500px;
