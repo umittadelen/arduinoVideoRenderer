@@ -120,7 +120,7 @@ drawFrame("out", 0);
 
 // Responsive resize
 function resizeCanvas() {
-    const scale = Math.min(window.innerWidth, window.innerHeight) * 0.2;
+    const scale = Math.max(window.innerWidth, window.innerHeight) * 0.2;
     canvas.style.width = scale + "px";
     canvas.style.height = scale * (105 / 112) + "px";
 }
