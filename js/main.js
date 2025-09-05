@@ -13,14 +13,32 @@ let log = document.getElementById('log');
 let currentStreamId = null;
 let streamSession = 0;
 
+let img = document.createElement('img'); // hidden image element
+img.style.display = "none";
+document.body.appendChild(img);
+let isImageMode = false;
+
 //TODO --------------------| Video & Serial Input Handlers  |--------------------
 
 document.getElementById('videoInput').onchange = e => {
-
     let file = e.target.files[0];
     if (file) {
-        video.src = URL.createObjectURL(file);
-        video.load();
+        if (file.type.startsWith("image/")) {
+            // --- Handle image ---
+            isImageMode = true;
+            img.src = URL.createObjectURL(file);
+            img.onload = () => {
+                logMessage(`Loaded image: ${file.name}`);
+            };
+        } else if (file.type.startsWith("video/")) {
+            // --- Handle video ---
+            isImageMode = false;
+            video.src = URL.createObjectURL(file);
+            video.load();
+            logMessage(`Loaded video: ${file.name}`);
+        } else {
+            alert("Unsupported file type!");
+        }
     }
 };
 
@@ -142,15 +160,14 @@ document.getElementById('start').onclick = async () => {
     const hasSrc = video.src && video.src !== window.location.href;
     const hasStream = video.srcObject;
 
-    if (!hasSrc && !hasStream) {
-        return alert(`Load a video file, paste a URL, or capture screen first!`);
+    if (!hasSrc && !hasStream && !isImageMode) {
+        return alert(`Load an image, video file, paste a URL, or capture screen first!`);
     }
 
     if (!writer) {
         logMessage(`No serial connected, running preview only!`)
     }
 
-    // Cancel old stream
     stopCurrentStream();
 
     let width = parseInt(document.getElementById('screenWidth').value, 10);
@@ -161,13 +178,43 @@ document.getElementById('start').onclick = async () => {
     previewCanvas.width = width;
     previewCanvas.height = height;
 
+    // 🖼️ If we're in image mode
+    if (isImageMode) {
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        let imageData = ctx.getImageData(0, 0, width, height);
+        let ditherType = document.getElementById('ditherType').value;
+        imageData = applyDithering(imageData, ditherType);
+        previewctx.putImageData(imageData, 0, 0);
+
+        let bytes = frameToSSD1306Bytes(imageData, width, height);
+        if (writer && port && port.readable && port.writable) {
+            try {
+                let out = new Uint8Array(HEADER.length + bytes.length);
+                out.set(HEADER, 0);
+                out.set(bytes, HEADER.length);
+                await writer.write(out);
+                await waitForAck();
+                logMessage(`Image sent successfully!`);
+            } catch (err) {
+                logMessage(`Serial error: ${err}`);
+            }
+        } else {
+            logMessage("Preview only (no serial connected).");
+        }
+        return; // ✅ stop here, no streaming loop for images
+    }
+
+    // 🎥 Otherwise, it's video mode
     video.currentTime = 0;
     video.play();
-
     logMessage(`Streaming video at ${width}x${height} resolution`);
 
     let frameCount = 0;
     let lastFrameTime = performance.now();
+
     const sendFrame = async () => {
         const thisSession = streamSession;
         if (thisSession !== streamSession) return;
@@ -210,7 +257,7 @@ document.getElementById('start').onclick = async () => {
                 out.set(HEADER, 0);
                 out.set(bytes, HEADER.length);
                 await writer.write(out);
-                await waitForAck(); // wait for Arduino to finish processing frame
+                await waitForAck(); 
                 frameCount++;
             } catch (err) {
                 logMessage(`Serial disconnected or error: ${err}`);
@@ -235,6 +282,7 @@ document.getElementById('start').onclick = async () => {
 
     sendFrame();
 };
+
 
 function stopCurrentStream() {
     streamSession++;
