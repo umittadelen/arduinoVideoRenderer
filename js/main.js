@@ -178,11 +178,31 @@ document.getElementById('start').onclick = async () => {
     previewCanvas.width = width;
     previewCanvas.height = height;
 
-    // 🖼️ If we're in image mode
+    // If we're in image mode
     if (isImageMode) {
+        // Calculate aspect ratios
+        let imgAspect = img.naturalWidth / img.naturalHeight;
+        let targetAspect = width / height;
+        let drawWidth, drawHeight, offsetX, offsetY;
+
+        if (imgAspect > targetAspect) {
+            // Image is wider than target → fit by width
+            drawWidth = width;
+            drawHeight = Math.floor(width / imgAspect);
+            offsetX = 0;
+            offsetY = Math.floor((height - drawHeight) / 2);
+        } else {
+            // Image is taller than target → fit by height
+            drawHeight = height;
+            drawWidth = Math.floor(height * imgAspect);
+            offsetY = 0;
+            offsetX = Math.floor((width - drawWidth) / 2);
+        }
+
+        // Clear canvas, then draw image centered
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
+        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
 
         let imageData = ctx.getImageData(0, 0, width, height);
         let ditherType = document.getElementById('ditherType').value;
@@ -204,10 +224,10 @@ document.getElementById('start').onclick = async () => {
         } else {
             logMessage("Preview only (no serial connected).");
         }
-        return; // ✅ stop here, no streaming loop for images
+        return; // stop here for images
     }
 
-    // 🎥 Otherwise, it's video mode
+    // Otherwise, it's video mode
     video.currentTime = 0;
     video.play();
     logMessage(`Streaming video at ${width}x${height} resolution`);
