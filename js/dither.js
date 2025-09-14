@@ -354,7 +354,7 @@ function applyDithering(imageData, type, options = {}) {
     if (type === "huePattern") return huePatternDither(imageData);
     if (type === "stucki") return stuckiDither(imageData, width, height);
     if (type === "none") return noDither(imageData);
-    return floydSteinbergDither(imageData);
+    return floydSteinbergDither(imageData, width, height);
 }
 
 export {applyDithering};
