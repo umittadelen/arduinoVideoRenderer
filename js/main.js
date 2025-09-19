@@ -137,6 +137,49 @@ window.addEventListener('load', () => {
             document.getElementById(elementId).value = saved;
         }
     }
+
+    // HiDPI canvas fix: set CSS size to logical pixels for 1:1 rendering
+    function fixHiDPICanvas(canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        if (canvas.width && canvas.height) {
+            canvas.style.width = (canvas.width / dpr) + 'px';
+            canvas.style.height = (canvas.height / dpr) + 'px';
+        }
+    }
+
+    // HiDPI Canvas Fix switch UI logic (tick style)
+    const hidpiSwitch = document.getElementById('hidpiSwitch');
+    let hidpiEnabled = hidpiSwitch.checked;
+    hidpiSwitch.addEventListener('change', () => {
+        hidpiEnabled = hidpiSwitch.checked;
+        applyHiDPIFix();
+    });
+
+    function applyHiDPIFix() {
+        if (hidpiEnabled) {
+            fixHiDPICanvas(canvas);
+            fixHiDPICanvas(previewCanvas);
+        } else {
+            // Remove inline styles for normal scaling
+            canvas.style.width = '';
+            canvas.style.height = '';
+            previewCanvas.style.width = '';
+            previewCanvas.style.height = '';
+        }
+    }
+
+    window.addEventListener('load', applyHiDPIFix);
+
+    const widthInput = document.getElementById('screenWidth');
+    const heightInput = document.getElementById('screenHeight');
+    widthInput.addEventListener('input', applyHiDPIFix);
+    heightInput.addEventListener('input', applyHiDPIFix);
+
+    const origStart = document.getElementById('start').onclick;
+    document.getElementById('start').onclick = async function(...args) {
+        if (typeof origStart === 'function') await origStart.apply(this, args);
+        applyHiDPIFix();
+    };
 });
 
 //TODO --------------------|       Serial ACK Waiter        |--------------------
