@@ -1,3 +1,26 @@
+
+// Mobile device detection and fullscreen warning overlay
+if (/Mobi|Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent)) {
+    const warning = document.createElement('div');
+    warning.style.position = 'fixed';
+    warning.style.top = '0';
+    warning.style.left = '0';
+    warning.style.width = '100vw';
+    warning.style.height = '100vh';
+    warning.style.background = 'rgba(0,0,0,0.95)';
+    warning.style.color = '#fff';
+    warning.style.display = 'flex';
+    warning.style.flexDirection = 'column';
+    warning.style.justifyContent = 'center';
+    warning.style.alignItems = 'center';
+    warning.style.zIndex = '99999';
+    warning.style.fontSize = '2rem';
+    warning.innerHTML = '<div style="text-align:center;"><b>This website is not supported on mobile devices.</b><br><br>Please use a desktop browser for full functionality.</div>';
+    document.body.appendChild(warning);
+    // Prevent scrolling/interacting
+    document.body.style.overflow = 'hidden';
+}
+
 import { applyDithering } from './dither.js';
 
 //TODO --------------------|       Constants & Globals      |--------------------
@@ -147,25 +170,13 @@ window.addEventListener('load', () => {
         }
     }
 
-    // HiDPI Canvas Fix switch UI logic (tick style)
-    const hidpiSwitch = document.getElementById('hidpiSwitch');
-    let hidpiEnabled = hidpiSwitch.checked;
-    hidpiSwitch.addEventListener('change', () => {
-        hidpiEnabled = hidpiSwitch.checked;
-        applyHiDPIFix();
-    });
-
+    // HiDPI Canvas Fix always enabled
     function applyHiDPIFix() {
-        if (hidpiEnabled) {
-            fixHiDPICanvas(canvas);
-            fixHiDPICanvas(previewCanvas);
-        } else {
-            // Remove inline styles for normal scaling
-            canvas.style.width = '';
-            canvas.style.height = '';
-            previewCanvas.style.width = '';
-            previewCanvas.style.height = '';
-        }
+        fixHiDPICanvas(canvas);
+        fixHiDPICanvas(previewCanvas);
+        // Also update dithering preview canvases if present
+        const ditherPreviews = document.querySelectorAll('.preview-canvas');
+        ditherPreviews.forEach(c => fixHiDPICanvas(c));
     }
 
     window.addEventListener('load', applyHiDPIFix);

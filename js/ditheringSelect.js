@@ -10,7 +10,16 @@ let animating = false;
 let rotation = 0;
 let animationFrameId = null;
 
+function fixHiDPICanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  if (canvas.width && canvas.height) {
+    canvas.style.width = (canvas.width / dpr) + 'px';
+    canvas.style.height = (canvas.height / dpr) + 'px';
+  }
+}
+
 function drawDitherPreview(canvas, ditherType, rotation = 0) {
+  fixHiDPICanvas(canvas);
   const ctx = canvas.getContext('2d');
   const width = canvas.width;
   const height = canvas.height;
