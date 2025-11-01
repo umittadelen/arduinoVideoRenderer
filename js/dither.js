@@ -329,26 +329,23 @@ function stuckiDither(imageData, width, height) {
     return imageData;
 }
 
-function interleavedGradientNoise(imageData, width, height, frame = 0) {
+function interleavedGradientNoise(imageData, width, height) {
     let data = imageData.data;
     
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             let idx = (y * width + x) * 4;
             
-            // Get original grayscale value (using perceptual weights)
+            // Get original grayscale value
             let gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
             
-            // Interleaved gradient noise with TAA frame offset
-            let dot = x * 0.06711056 + y * 0.00583715 + frame * 0.00428772;
+            // Interleaved gradient noise: frac(52.9829189 * frac(x * 0.06711056 + y * 0.00583715))
+            let dot = x * 0.06711056 + y * 0.00583715;
             let noise = 52.9829189 * (dot - Math.floor(dot));
-            noise = (noise - Math.floor(noise));
-            
-            // Map noise from [0,1] to [-0.5, 0.5] for better distribution
-            noise = (noise - 0.5) * 255;
+            noise = (noise - Math.floor(noise)) * 255;
             
             // Apply threshold with noise
-            let newPixel = gray + noise > 127.5 ? 255 : 0;
+            let newPixel = gray > noise ? 255 : 0;
             
             data[idx] = data[idx + 1] = data[idx + 2] = newPixel;
         }
